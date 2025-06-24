@@ -1,17 +1,17 @@
 package session
 
 import (
-	"ai-squad/log"
-	"ai-squad/session/git"
-	"ai-squad/session/tmux"
-	"path/filepath"
-
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/atotto/clipboard"
+
+	"ai-squad/log"
+	"ai-squad/session/git"
+	"ai-squad/session/tmux"
 )
 
 type Status int
@@ -245,7 +245,12 @@ func (i *Instance) Start(firstTimeSetup bool) error {
 		}
 
 		// Create new session
-		if err := i.tmuxSession.Start(i.gitWorktree.GetWorktreePath()); err != nil {
+		sessionPath, err := i.GetSessionPath()
+		if err != nil {
+			setupErr = fmt.Errorf("failed to get session path: %w", err)
+			return setupErr
+		}
+		if err := i.tmuxSession.Start(sessionPath); err != nil {
 			// Cleanup git worktree if tmux session creation fails
 			if cleanupErr := i.gitWorktree.Cleanup(); cleanupErr != nil {
 				err = fmt.Errorf("%v (cleanup error: %v)", err, cleanupErr)
@@ -462,7 +467,11 @@ func (i *Instance) Resume() error {
 		if err := i.tmuxSession.Restore(); err != nil {
 			log.ErrorLog.Print(err)
 			// If restore fails, fall back to creating new session
-			if err := i.tmuxSession.Start(i.gitWorktree.GetWorktreePath()); err != nil {
+			sessionPath, err := i.GetSessionPath()
+			if err != nil {
+				return fmt.Errorf("failed to get session path: %w", err)
+			}
+			if err := i.tmuxSession.Start(sessionPath); err != nil {
 				log.ErrorLog.Print(err)
 				// Cleanup git worktree if tmux session creation fails
 				if cleanupErr := i.gitWorktree.Cleanup(); cleanupErr != nil {
@@ -474,7 +483,11 @@ func (i *Instance) Resume() error {
 		}
 	} else {
 		// Create new tmux session
-		if err := i.tmuxSession.Start(i.gitWorktree.GetWorktreePath()); err != nil {
+		sessionPath, err := i.GetSessionPath()
+		if err != nil {
+			return fmt.Errorf("failed to get session path: %w", err)
+		}
+		if err := i.tmuxSession.Start(sessionPath); err != nil {
 			log.ErrorLog.Print(err)
 			// Cleanup git worktree if tmux session creation fails
 			if cleanupErr := i.gitWorktree.Cleanup(); cleanupErr != nil {
@@ -518,6 +531,24 @@ func (i *Instance) UpdateDiffStats() error {
 // GetDiffStats returns the current git diff statistics
 func (i *Instance) GetDiffStats() *git.DiffStats {
 	return i.diffStats
+}
+
+// GetSessionPath returns the path where tmux session should start
+// It combines the worktree path with the subdirectory if Claude Squad was run from a subdirectory
+func (i *Instance) GetSessionPath() (string, error) {
+	if i.gitWorktree == nil {
+		return "", fmt.Errorf("git worktree not initialized")
+	}
+
+	worktreePath := i.gitWorktree.GetWorktreePath()
+	repoPath := i.gitWorktree.GetRepoPath()
+
+	relPath, err := filepath.Rel(repoPath, i.Path)
+	if err != nil {
+		return "", fmt.Errorf("failed to get relative path: %w", err)
+	}
+
+	return filepath.Join(worktreePath, relPath), nil
 }
 
 // SendPrompt sends a prompt to the tmux session
