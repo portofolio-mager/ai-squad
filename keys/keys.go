@@ -34,6 +34,10 @@ const (
 	// Diff keybindings
 	KeyShiftUp
 	KeyShiftDown
+
+	// Two-column navigation
+	KeyLeft
+	KeyRight
 )
 
 // GlobalKeyStringsMap is a global, immutable map string to keybinding.
@@ -44,6 +48,10 @@ var GlobalKeyStringsMap = map[string]KeyName{
 	"j":          KeyDown,
 	"shift+up":   KeyShiftUp,
 	"shift+down": KeyShiftDown,
+	"left":       KeyLeft,
+	"h":          KeyLeft,
+	"right":      KeyRight,
+	"l":          KeyRight,
 	"N":          KeyPrompt,
 	"M":          KeyPromptFromMain,
 	"enter":      KeyEnter,
@@ -58,7 +66,7 @@ var GlobalKeyStringsMap = map[string]KeyName{
 	"p":          KeySubmit,
 	"P":          KeyChangeProgram,
 	"a":          KeyChangeProgram,
-	"l":          KeyListProgram,
+	"L":          KeyListProgram,
 	"?":          KeyHelp,
 }
 
@@ -79,6 +87,14 @@ var GlobalkeyBindings = map[KeyName]key.Binding{
 	KeyShiftDown: key.NewBinding(
 		key.WithKeys("shift+down"),
 		key.WithHelp("shift+↓", "scroll"),
+	),
+	KeyLeft: key.NewBinding(
+		key.WithKeys("left", "h"),
+		key.WithHelp("←/h", "left"),
+	),
+	KeyRight: key.NewBinding(
+		key.WithKeys("right", "l"),
+		key.WithHelp("→/l", "right"),
 	),
 	KeyEnter: key.NewBinding(
 		key.WithKeys("enter", "o"),
@@ -135,8 +151,8 @@ var GlobalkeyBindings = map[KeyName]key.Binding{
 		key.WithHelp("a", "change program"),
 	),
 	KeyListProgram: key.NewBinding(
-		key.WithKeys("l"),
-		key.WithHelp("l", "current program"),
+		key.WithKeys("L"),
+		key.WithHelp("L", "current program"),
 	),
 
 	// -- Special keybindings --

@@ -26,6 +26,15 @@ func GetConfigDir() (string, error) {
 	return filepath.Join(homeDir, ".ai-squad"), nil
 }
 
+// LayoutMode represents different layout modes for the UI
+type LayoutMode string
+
+const (
+	LayoutModeFull   LayoutMode = "full"   // Standard desktop layout (internal use)
+	LayoutModeMobile LayoutMode = "mobile" // Small screen layout (internal use)
+	LayoutModeAuto   LayoutMode = "auto"   // Auto-detect based on terminal size (default and only user option)
+)
+
 // Config represents the application configuration
 type Config struct {
 	// DefaultProgram is the default program to run in new instances
@@ -38,6 +47,12 @@ type Config struct {
 	BranchPrefix string `json:"branch_prefix"`
 	// DefaultBranch is the name of the default branch (e.g., "main", "master"). If empty, auto-detects.
 	DefaultBranch string `json:"default_branch,omitempty"`
+	// LayoutMode controls the UI layout for different screen sizes
+	LayoutMode LayoutMode `json:"layout_mode"`
+	// CompactMenu shows abbreviated menu options for small screens
+	CompactMenu bool `json:"compact_menu"`
+	// HideLogo hides the ASCII logo to save screen space
+	HideLogo bool `json:"hide_logo"`
 }
 
 // DefaultConfig returns the default configuration
@@ -61,6 +76,9 @@ func DefaultConfig() *Config {
 			return fmt.Sprintf("%s/", strings.ToLower(user.Username))
 		}(),
 		DefaultBranch: "", // Empty means auto-detect
+		LayoutMode:    LayoutModeAuto,
+		CompactMenu:   false,
+		HideLogo:      false,
 	}
 }
 
@@ -228,4 +246,30 @@ func saveConfig(config *Config) error {
 // SaveConfig exports the saveConfig function for use by other packages
 func SaveConfig(config *Config) error {
 	return saveConfig(config)
+}
+
+// GetEffectiveLayoutMode returns the effective layout mode based on terminal width
+// Always uses auto-detection regardless of config setting
+func (c *Config) GetEffectiveLayoutMode(terminalWidth int) LayoutMode {
+	// Always auto-detect based on terminal width
+	if terminalWidth < 80 {
+		return LayoutModeMobile
+	}
+	return LayoutModeFull
+}
+
+// ShouldUseCompactMenu returns whether to use compact menu based on layout mode
+func (c *Config) ShouldUseCompactMenu(effectiveMode LayoutMode) bool {
+	if c.CompactMenu {
+		return true
+	}
+	return effectiveMode == LayoutModeMobile
+}
+
+// ShouldHideLogo returns whether to hide logo based on layout mode
+func (c *Config) ShouldHideLogo(effectiveMode LayoutMode) bool {
+	if c.HideLogo {
+		return true
+	}
+	return effectiveMode == LayoutModeMobile
 }
