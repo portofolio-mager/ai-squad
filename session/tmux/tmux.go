@@ -102,7 +102,7 @@ func (t *TmuxSession) Start(workDir string) error {
 	if len(programParts) == 0 {
 		return fmt.Errorf("no program specified")
 	}
-	
+
 	// Check if the program is available
 	if _, err := exec.LookPath(programParts[0]); err != nil {
 		return fmt.Errorf("program '%s' not found in PATH. Please ensure it is installed and available", programParts[0])
@@ -119,7 +119,7 @@ func (t *TmuxSession) Start(workDir string) error {
 		if errors.As(err, &exitErr) && len(exitErr.Stderr) > 0 {
 			errorDetails = fmt.Sprintf("%v (stderr: %s)", err, string(exitErr.Stderr))
 		}
-		
+
 		// Cleanup any partially created session if any exists.
 		if t.DoesSessionExist() {
 			cleanupCmd := exec.Command("tmux", "kill-session", "-t", t.sanitizedName)
