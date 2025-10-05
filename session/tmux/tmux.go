@@ -23,6 +23,8 @@ const ProgramClaude = "claude"
 
 const ProgramAider = "aider"
 const ProgramGemini = "gemini"
+const ProgramQwen = "qwen"
+const ProgramCrush = "crush"
 
 // TmuxSession represents a managed tmux session
 type TmuxSession struct {
@@ -149,14 +151,14 @@ func (t *TmuxSession) Start(workDir string) error {
 		return fmt.Errorf("error restoring tmux session: %w", err)
 	}
 
-	if strings.HasSuffix(t.program, ProgramClaude) || strings.HasSuffix(t.program, ProgramAider) || strings.HasSuffix(t.program, ProgramGemini) {
+	if strings.HasSuffix(t.program, ProgramClaude) || strings.HasSuffix(t.program, ProgramAider) || strings.HasSuffix(t.program, ProgramGemini) || strings.HasSuffix(t.program, ProgramQwen) || strings.HasSuffix(t.program, ProgramCrush) {
 		searchString := "Do you trust the files in this folder?"
 		tapFunc := t.TapEnter
 		maxWaitTime := 30 * time.Second // Much longer timeout for slower systems
 		if !strings.HasSuffix(t.program, ProgramClaude) {
 			searchString = "Open documentation url for more info"
 			tapFunc = t.TapDAndEnter
-			maxWaitTime = 45 * time.Second // Aider/Gemini take longer to start
+			maxWaitTime = 45 * time.Second // Aider/Gemini/Qwen/Crush take longer to start
 		}
 
 		// Deal with "do you trust the files" screen by sending an enter keystroke.
@@ -256,6 +258,10 @@ func (t *TmuxSession) HasUpdated() (updated bool, hasPrompt bool) {
 	} else if strings.HasPrefix(t.program, ProgramAider) {
 		hasPrompt = strings.Contains(content, "(Y)es/(N)o/(D)on't ask again")
 	} else if strings.HasPrefix(t.program, ProgramGemini) {
+		hasPrompt = strings.Contains(content, "Yes, allow once")
+	} else if strings.HasPrefix(t.program, ProgramQwen) {
+		hasPrompt = strings.Contains(content, "Yes, allow once")
+	} else if strings.HasPrefix(t.program, ProgramCrush) {
 		hasPrompt = strings.Contains(content, "Yes, allow once")
 	}
 
