@@ -5,7 +5,7 @@
 [AI Squad](https://portofolio-mager.github.io/ai-squad/) is a terminal app that manages multiple [Claude Code](https://github.com/anthropics/claude-code), [Codex](https://github.com/openai/codex), [Gemini](https://github.com/google-gemini/gemini-cli) (and other local agents including [Aider](https://github.com/Aider-AI/aider)) in separate workspaces, allowing you to work on multiple tasks simultaneously.
 
 
-![AI Squad Screenshot](assets/screenshot.png)
+![AI Squad Screenshot](assets/screenshot2.png)
 
 ### Highlights
 - Complete tasks in the background (including yolo / auto-accept mode!)
