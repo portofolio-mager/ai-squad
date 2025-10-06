@@ -295,7 +295,7 @@ func (i *Instance) combineErrors(errs []error) error {
 }
 
 func (i *Instance) Preview() (string, error) {
-	if !i.started || i.Status == Paused {
+	if i.tmuxSession == nil || i.Status == Paused {
 		return "", nil
 	}
 	return i.tmuxSession.CapturePaneContent()
@@ -534,7 +534,7 @@ func (i *Instance) SendPrompt(prompt string) error {
 
 // PreviewFullHistory captures the entire tmux pane output including full scrollback history
 func (i *Instance) PreviewFullHistory() (string, error) {
-	if !i.started || i.Status == Paused {
+	if i.tmuxSession == nil || i.Status == Paused {
 		return "", nil
 	}
 	return i.tmuxSession.CapturePaneContentWithOptions("-", "-")

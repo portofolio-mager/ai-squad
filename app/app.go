@@ -90,6 +90,8 @@ type home struct {
 	errBox *ui.ErrBox
 	// global spinner instance. we plumb this down to where it's needed
 	spinner spinner.Model
+	// startingSpinner is a transient spinner shown while an instance is being started.
+	startingSpinner *spinner.Model
 	// textInputOverlay handles text input with state
 	textInputOverlay *overlay.TextInputOverlay
 	// changeProgramOverlay handles program change input (legacy - kept for compatibility)
@@ -280,9 +282,55 @@ func (m *home) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case instanceChangedMsg:
 		// Handle instance changed after confirmation action
 		return m, m.instanceChanged()
+	case instanceStartResultMsg:
+		// Stop the transient starting spinner as the async start finished.
+		m.startingSpinner = nil
+
+		// Handle asynchronous instance start completion.
+		if msg.Err != nil {
+			// Ensure we select the instance that failed (in case selection moved).
+			m.list.SetSelectedInstance(msg.Index)
+			// Remove the instance and surface the error.
+			m.list.Kill()
+			m.state = stateDefault
+			return m, m.handleError(msg.Err)
+		}
+		// Success: finalize the instance, persist state, and optionally open prompt/help.
+		if m.newInstanceFinalizer != nil {
+			m.newInstanceFinalizer()
+		}
+		// Set autoyes if global flag enabled.
+		if m.autoYes {
+			if inst := m.list.GetInstances()[msg.Index]; inst != nil {
+				inst.AutoYes = true
+			}
+		}
+		// Save after adding new instance
+		if err := m.storage.SaveInstances(m.list.GetInstances()); err != nil {
+			return m, m.handleError(err)
+		}
+		m.state = stateDefault
+		if msg.PromptAfter {
+			m.state = statePrompt
+			m.menu.SetState(ui.StatePrompt)
+			m.textInputOverlay = overlay.NewTextInputOverlay("Enter prompt", "")
+		} else {
+			m.menu.SetState(ui.StateDefault)
+			if inst := m.list.GetInstances()[msg.Index]; inst != nil {
+				m.showHelpScreen(helpStart(inst), nil)
+			}
+		}
+		return m, tea.Batch(tea.WindowSize(), m.instanceChanged())
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
+		// If a transient starting spinner exists, update it as well so it animates while
+		// the instance start is in progress.
+		if m.startingSpinner != nil {
+			var cmd2 tea.Cmd
+			*m.startingSpinner, cmd2 = (*m.startingSpinner).Update(msg)
+			return m, tea.Batch(cmd, cmd2)
+		}
 		return m, cmd
 	}
 	return m, nil
@@ -363,35 +411,25 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 				return m, m.handleError(fmt.Errorf("title cannot be empty"))
 			}
 
-			if err := instance.Start(true); err != nil {
-				m.list.Kill()
-				m.state = stateDefault
-				return m, m.handleError(err)
-			}
-			// Save after adding new instance
-			if err := m.storage.SaveInstances(m.list.GetInstances()); err != nil {
-				return m, m.handleError(err)
-			}
-			// Instance added successfully, call the finalizer.
-			m.newInstanceFinalizer()
-			if m.autoYes {
-				instance.AutoYes = true
-			}
-
-			m.newInstanceFinalizer()
+			// Capture the index of the instance and flags needed after startup.
+			instanceIndex := m.list.NumInstances() - 1
+			promptAfter := m.promptAfterName
+			// Move UI back to default state immediately so the UI remains responsive.
 			m.state = stateDefault
-			if m.promptAfterName {
-				m.state = statePrompt
-				m.menu.SetState(ui.StatePrompt)
-				// Initialize the text input overlay
-				m.textInputOverlay = overlay.NewTextInputOverlay("Enter prompt", "")
-				m.promptAfterName = false
-			} else {
-				m.menu.SetState(ui.StateDefault)
-				m.showHelpScreen(helpStart(instance), nil)
-			}
+			m.menu.SetState(ui.StateDefault)
+			// Reset promptAfterName to avoid double-handling when result arrives.
+			m.promptAfterName = false
 
-			return m, tea.Batch(tea.WindowSize(), m.instanceChanged())
+			// Initialize a transient spinner to show while the instance starts.
+			s := spinner.New(spinner.WithSpinner(spinner.MiniDot))
+			m.startingSpinner = &s
+
+			// Start the instance asynchronously and run the spinner tick concurrently. The spinner
+			// will be updated via spinner.TickMsg in Update until instanceStartResultMsg is received.
+			return m, tea.Batch(
+				m.startingSpinner.Tick,
+				startInstanceCmd(m.list.GetInstances()[instanceIndex], instanceIndex, promptAfter),
+			)
 		case tea.KeyRunes:
 			if len(instance.Title) >= 32 {
 				return m, m.handleError(fmt.Errorf("title cannot be longer than 32 characters"))
@@ -803,6 +841,25 @@ type tickUpdateMetadataMessage struct{}
 
 type instanceChangedMsg struct{}
 
+// instanceStartResultMsg is sent when an asynchronous instance start completes.
+type instanceStartResultMsg struct {
+	Index       int
+	Err         error
+	PromptAfter bool
+}
+
+// startInstanceCmd runs instance.Start(true) off the UI goroutine and returns an instanceStartResultMsg.
+func startInstanceCmd(instance *session.Instance, index int, promptAfter bool) tea.Cmd {
+	return func() tea.Msg {
+		err := instance.Start(true)
+		return instanceStartResultMsg{
+			Index:       index,
+			Err:         err,
+			PromptAfter: promptAfter,
+		}
+	}
+}
+
 // tickUpdateMetadataCmd is the callback to update the metadata of the instances every 500ms. Note that we iterate
 // overall the instances and capture their output. It's a pretty expensive operation. Let's do it 2x a second only.
 var tickUpdateMetadataCmd = func() tea.Msg {
@@ -861,6 +918,13 @@ func (m *home) View() string {
 		m.menu.String(),
 		m.errBox.String(),
 	)
+
+	// If an instance is currently being started asynchronously, show a transient centered
+	// overlay with a spinner so the user knows work is in progress.
+	if m.startingSpinner != nil {
+		content := fmt.Sprintf("%s Starting instance...", m.startingSpinner.View())
+		return overlay.PlaceOverlay(0, 0, content, mainView, true, true)
+	}
 
 	if m.state == statePrompt {
 		if m.textInputOverlay == nil {
