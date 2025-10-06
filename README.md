@@ -1,5 +1,7 @@
 # AI Squad [![CI](https://github.com/portofolio-mager/ai-squad/actions/workflows/build.yml/badge.svg)](https://github.com/portofolio-mager/ai-squad/actions/workflows/build.yml) [![GitHub Release](https://img.shields.io/github/v/release/portofolio-mager/ai-squad)](https://github.com/portofolio-mager/ai-squad/releases/latest)
-
+ 
+> Note: This project is a fork of https://github.com/smtg-ai/claude-squad.
+ 
 [AI Squad](https://portofolio-mager.github.io/ai-squad/) is a terminal app that manages multiple [Claude Code](https://github.com/anthropics/claude-code), [Codex](https://github.com/openai/codex), [Gemini](https://github.com/google-gemini/gemini-cli) (and other local agents including [Aider](https://github.com/Aider-AI/aider)) in separate workspaces, allowing you to work on multiple tasks simultaneously.
 
 
@@ -10,6 +12,8 @@
 - Manage instances and tasks in one terminal window
 - Review changes before applying them, checkout changes before pushing them
 - Each task gets its own isolated git workspace, so no conflicts
+- Dynamic project switching
+- Add Qwen and Crush (AI assistants, similar to Claude Code, Codex, Gemini, Aider)
 
 <br />
 
