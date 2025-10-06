@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	version     = "1.0.13"
+	version     = "1.0.14"
 	programFlag string
 	autoYesFlag bool
 	daemonFlag  bool
@@ -138,7 +138,7 @@ var (
 		Short: "Print the version number of claude-squad",
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Printf("claude-squad version %s\n", version)
-			fmt.Printf("https://github.com/smtg-ai/claude-squad/releases/tag/v%s\n", version)
+			fmt.Printf("https://github.com/portofolio-mager/ai-squad/releases/tag/v%s\n", version)
 		},
 	}
 )

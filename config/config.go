@@ -112,6 +112,67 @@ func GetClaudeCommand() (string, error) {
 	return "", fmt.Errorf("claude command not found in aliases or PATH")
 }
 
+// ResolveProgramCommand attempts to resolve the executable for an arbitrary program string.
+// If the program contains arguments (e.g. "aider --model gpt-4"), it resolves the first token
+// (the executable) using the user's shell (to honor aliases) and PATH. If resolution succeeds,
+// it returns the resolved full path plus the original arguments. If resolution fails, it
+// returns the original program string unchanged.
+func ResolveProgramCommand(program string) string {
+	if strings.TrimSpace(program) == "" {
+		return program
+	}
+	parts := strings.Fields(program)
+	bin := parts[0]
+	args := ""
+	if len(parts) > 1 {
+		args = strings.Join(parts[1:], " ")
+	}
+
+	// Try resolving via the user's shell (to honor aliases)
+	shell := os.Getenv("SHELL")
+	if shell == "" {
+		shell = "/bin/bash"
+	}
+
+	var shellCmd string
+	if strings.Contains(shell, "zsh") {
+		shellCmd = fmt.Sprintf("source ~/.zshrc &>/dev/null || true; which %s", bin)
+	} else if strings.Contains(shell, "bash") {
+		shellCmd = fmt.Sprintf("source ~/.bashrc &>/dev/null || true; which %s", bin)
+	} else {
+		shellCmd = fmt.Sprintf("which %s", bin)
+	}
+
+	cmd := exec.Command(shell, "-c", shellCmd)
+	output, err := cmd.Output()
+	if err == nil && len(output) > 0 {
+		path := strings.TrimSpace(string(output))
+		if path != "" {
+			// Extract actual path if alias output format includes extra text
+			aliasRegex := regexp.MustCompile(`(?:aliased to|->|=)\s*([^\s]+)`)
+			matches := aliasRegex.FindStringSubmatch(path)
+			if len(matches) > 1 {
+				path = matches[1]
+			}
+			if args != "" {
+				return fmt.Sprintf("%s %s", path, args)
+			}
+			return path
+		}
+	}
+
+	// Fallback to PATH lookup
+	if p, err := exec.LookPath(bin); err == nil {
+		if args != "" {
+			return fmt.Sprintf("%s %s", p, args)
+		}
+		return p
+	}
+
+	// Couldn't resolve; return original program string.
+	return program
+}
+
 func LoadConfig() *Config {
 	configDir, err := GetConfigDir()
 	if err != nil {

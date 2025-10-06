@@ -40,6 +40,7 @@ const (
 	StateEmpty
 	StateNewInstance
 	StatePrompt
+	StateChangeProgram
 )
 
 type Menu struct {
@@ -53,7 +54,9 @@ type Menu struct {
 	keyDown keys.KeyName
 }
 
-var defaultMenuOptions = []keys.KeyName{keys.KeyNew, keys.KeyNewFromMain, keys.KeyPrompt, keys.KeyPromptFromMain, keys.KeyHelp, keys.KeyQuit}
+var defaultMenuOptions = []keys.KeyName{keys.KeyNew, keys.KeyNewFromMain, keys.KeyPrompt, keys.KeyPromptFromMain, keys.KeyHelp, keys.KeyQuit,
+	keys.KeyChangeProgram,
+	keys.KeyListProgram}
 var newInstanceMenuOptions = []keys.KeyName{keys.KeySubmitName}
 var promptMenuOptions = []keys.KeyName{keys.KeySubmitName}
 
@@ -117,6 +120,8 @@ func (m *Menu) updateOptions() {
 		m.options = newInstanceMenuOptions
 	case StatePrompt:
 		m.options = promptMenuOptions
+	case StateChangeProgram:
+		m.options = []keys.KeyName{}
 	}
 }
 

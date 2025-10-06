@@ -10,6 +10,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -42,6 +43,10 @@ const (
 	stateHelp
 	// stateConfirm is the state when a confirmation modal is displayed.
 	stateConfirm
+	// stateChangeProgram is the state when the user is changing the program.
+	stateChangeProgram
+	// stateSelectProgram is the state when the user is selecting a program from a list.
+	stateSelectProgram
 )
 
 type home struct {
@@ -72,6 +77,8 @@ type home struct {
 
 	// keySent is used to manage underlining menu items
 	keySent bool
+	// changeProgramInput is the current input for changing the program
+	changeProgramInput string
 
 	// -- UI Components --
 
@@ -91,6 +98,11 @@ type home struct {
 	textOverlay *overlay.TextOverlay
 	// confirmationOverlay displays confirmation modals
 	confirmationOverlay *overlay.ConfirmationOverlay
+
+	// -- Layout --
+
+	// width and height of the terminal
+	width, height int
 }
 
 func newHome(ctx context.Context, program string, autoYes bool) *home {
@@ -107,6 +119,15 @@ func newHome(ctx context.Context, program string, autoYes bool) *home {
 		os.Exit(1)
 	}
 
+	// Resolve the program to use on startup. If the caller provided a program, prefer it;
+	// otherwise use the configured default. ResolveProgramCommand will attempt to honor shell
+	// aliases and PATH to return a usable executable path plus original args.
+	startProgram := program
+	if strings.TrimSpace(startProgram) == "" {
+		startProgram = appConfig.DefaultProgram
+	}
+	startProgram = config.ResolveProgramCommand(startProgram)
+
 	h := &home{
 		ctx:          ctx,
 		spinner:      spinner.New(spinner.WithSpinner(spinner.MiniDot)),
@@ -115,7 +136,7 @@ func newHome(ctx context.Context, program string, autoYes bool) *home {
 		errBox:       ui.NewErrBox(),
 		storage:      storage,
 		appConfig:    appConfig,
-		program:      program,
+		program:      startProgram,
 		autoYes:      autoYes,
 		state:        stateDefault,
 		appState:     appState,
@@ -144,6 +165,9 @@ func newHome(ctx context.Context, program string, autoYes bool) *home {
 // updateHandleWindowSizeEvent sets the sizes of the components.
 // The components will try to render inside their bounds.
 func (m *home) updateHandleWindowSizeEvent(msg tea.WindowSizeMsg) {
+	m.width = msg.Width
+	m.height = msg.Height
+
 	// List takes 30% of width, preview takes 70%
 	listWidth := int(float32(msg.Width) * 0.3)
 	tabsWidth := msg.Width - listWidth
@@ -270,7 +294,8 @@ func (m *home) handleMenuHighlighting(msg tea.KeyMsg) (cmd tea.Cmd, returnEarly 
 		m.keySent = false
 		return nil, false
 	}
-	if m.state == statePrompt || m.state == stateHelp || m.state == stateConfirm {
+	// Don't intercept keys when in any overlay/input-like states (prompt, help, confirmation, change program, select program).
+	if m.state == statePrompt || m.state == stateHelp || m.state == stateConfirm || m.state == stateChangeProgram || m.state == stateSelectProgram {
 		return nil, false
 	}
 	// If it's in the global keymap, we should try to highlight it.
@@ -424,6 +449,94 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 		}
 
 		return m, nil
+	} else if m.state == stateChangeProgram {
+		// Handle quit commands first. Don't handle q because the user might want to type that.
+		if msg.String() == "ctrl+c" {
+			m.state = stateDefault
+			m.changeProgramInput = ""
+			return m, tea.Sequence(
+				tea.WindowSize(),
+				func() tea.Msg {
+					m.menu.SetState(ui.StateDefault)
+					return nil
+				},
+			)
+		}
+
+		switch msg.Type {
+		// Confirm the new program
+		case tea.KeyEnter:
+			if len(m.changeProgramInput) == 0 {
+				return m, m.handleError(fmt.Errorf("program cannot be empty"))
+			}
+
+			// Resolve the program executable (honor shell aliases and PATH) before assigning.
+			// This ensures commands like "aider --model ..." or "codex" are resolved to the actual
+			// binary path when possible.
+			m.program = config.ResolveProgramCommand(m.changeProgramInput)
+			m.state = stateDefault
+			m.changeProgramInput = ""
+			return m, tea.Sequence(
+				tea.WindowSize(),
+				func() tea.Msg {
+					m.menu.SetState(ui.StateDefault)
+					return nil
+				},
+			)
+		case tea.KeyRunes:
+			if len(m.changeProgramInput) >= 32 {
+				return m, m.handleError(fmt.Errorf("program cannot be longer than 32 characters"))
+			}
+			m.changeProgramInput += string(msg.Runes)
+		case tea.KeyBackspace:
+			if len(m.changeProgramInput) == 0 {
+				return m, nil
+			}
+			m.changeProgramInput = m.changeProgramInput[:len(m.changeProgramInput)-1]
+		case tea.KeySpace:
+			m.changeProgramInput += " "
+		case tea.KeyEsc:
+			m.state = stateDefault
+			m.changeProgramInput = ""
+			return m, tea.Sequence(
+				tea.WindowSize(),
+				func() tea.Msg {
+					m.menu.SetState(ui.StateDefault)
+					return nil
+				},
+			)
+		default:
+		}
+		return m, nil
+	} else if m.state == stateSelectProgram {
+		programs := []string{
+			"claude",
+			"codex",
+			"gemini",
+			"qwen",
+			"crush",
+		}
+
+		// Handle cancel/escape first
+		if msg.String() == "esc" || msg.String() == "ctrl+c" {
+			m.state = stateDefault
+			return m, nil
+		}
+
+		// Support numeric selection for any item in the list (1..n).
+		if msg.Type == tea.KeyRunes && len(msg.Runes) > 0 {
+			r := msg.Runes[0]
+			if r >= '1' && r <= '9' {
+				idx := int(r - '1')
+				if idx < len(programs) {
+					// Resolve the selected program to honor aliases / PATH for the executable portion.
+					m.program = config.ResolveProgramCommand(programs[idx])
+				}
+				m.state = stateDefault
+				return m, nil
+			}
+		}
+		return m, nil
 	}
 
 	// Handle confirmation state
@@ -451,6 +564,15 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 			}
 			return m, m.instanceChanged()
 		}
+	}
+
+	// Handle text overlay if present
+	if m.textOverlay != nil {
+		shouldClose := m.textOverlay.HandleKeyPress(msg)
+		if shouldClose {
+			m.textOverlay = nil
+		}
+		return m, nil
 	}
 
 	// Handle quit commands first
@@ -487,6 +609,9 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 		m.menu.SetState(ui.StateNewInstance)
 		m.promptAfterName = true
 
+		return m, nil
+	case keys.KeyChangeProgram:
+		m.state = stateSelectProgram
 		return m, nil
 	case keys.KeyNew:
 		if m.list.NumInstances() >= GlobalInstanceLimit {
@@ -667,6 +792,23 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 			m.state = stateDefault
 		})
 		return m, nil
+	case keys.KeyListProgram:
+		instances := m.list.GetInstances()
+		if len(instances) == 0 {
+			m.textOverlay = overlay.NewTextOverlay("Current program: " + m.program)
+		} else {
+			programSet := make(map[string]bool)
+			for _, instance := range instances {
+				programSet[instance.Program] = true
+			}
+			var programs []string
+			for program := range programSet {
+				programs = append(programs, "- "+program)
+			}
+			content := "Programs in use:\n" + strings.Join(programs, "\n")
+			m.textOverlay = overlay.NewTextOverlay(content)
+		}
+		return m, nil
 	default:
 		return m, nil
 	}
@@ -789,6 +931,27 @@ func (m *home) View() string {
 			log.ErrorLog.Printf("confirmation overlay is nil")
 		}
 		return overlay.PlaceOverlay(0, 0, m.confirmationOverlay.Render(), mainView, true, true)
+	} else if m.state == stateChangeProgram {
+		prompt := "Change program: " + m.changeProgramInput
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, prompt)
+	} else if m.state == stateSelectProgram {
+		programs := []string{
+			"claude",
+			"codex",
+			"gemini",
+			"qwen",
+			"crush",
+		}
+		var lines []string
+		lines = append(lines, "Select program:")
+		for i, prog := range programs {
+			lines = append(lines, fmt.Sprintf("%d. %s", i+1, prog))
+		}
+		lines = append(lines, "", "Press number to select, Esc to cancel")
+		prompt := strings.Join(lines, "\n")
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, prompt)
+	} else if m.textOverlay != nil {
+		return overlay.PlaceOverlay(0, 0, m.textOverlay.Render(), mainView, true, true)
 	}
 
 	return mainView

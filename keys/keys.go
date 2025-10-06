@@ -22,8 +22,10 @@ const (
 
 	KeyCheckout
 	KeyResume
-	KeyPrompt // New key for entering a prompt
-	KeyHelp   // Key for showing help screen
+	KeyPrompt        // New key for entering a prompt
+	KeyHelp          // Key for showing help screen
+	KeyChangeProgram // Key for changing the program
+	KeyListProgram   // Key for listing the current program
 
 	// Main branch creation keys
 	KeyNewFromMain    // New key for creating instance from main branch
@@ -54,6 +56,8 @@ var GlobalKeyStringsMap = map[string]KeyName{
 	"c":          KeyCheckout,
 	"r":          KeyResume,
 	"p":          KeySubmit,
+	"P":          KeyChangeProgram,
+	"l":          KeyListProgram,
 	"?":          KeyHelp,
 }
 
@@ -122,6 +126,14 @@ var GlobalkeyBindings = map[KeyName]key.Binding{
 	KeyResume: key.NewBinding(
 		key.WithKeys("r"),
 		key.WithHelp("r", "resume"),
+	),
+	KeyChangeProgram: key.NewBinding(
+		key.WithKeys("P"),
+		key.WithHelp("P", "change program"),
+	),
+	KeyListProgram: key.NewBinding(
+		key.WithKeys("l"),
+		key.WithHelp("l", "list program"),
 	),
 
 	// -- Special keybindings --

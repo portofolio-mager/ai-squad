@@ -142,9 +142,10 @@ func (r *InstanceRenderer) Render(i *session.Instance, idx int, selected bool, h
 
 	// Add base ref indicator as prefix
 	var baseRefIndicator string
-	if i.BaseRef == "main" {
+	switch i.BaseRef {
+	case "main":
 		baseRefIndicator = "[main] "
-	} else if i.BaseRef == "HEAD" {
+	case "HEAD":
 		baseRefIndicator = "* "
 	}
 
