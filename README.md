@@ -25,7 +25,7 @@
 
 Both Homebrew and manual installation will install AI Squad as `ais` on your system.
 
-#### Homebrew
+#### Homebrew (not published yet)
 
 ```bash
 brew install ai-squad
