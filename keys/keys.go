@@ -122,7 +122,7 @@ var GlobalkeyBindings = map[KeyName]key.Binding{
 	),
 	KeyListProgram: key.NewBinding(
 		key.WithKeys("l"),
-		key.WithHelp("l", "list program"),
+		key.WithHelp("l", "current program"),
 	),
 
 	// -- Special keybindings --

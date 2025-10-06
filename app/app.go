@@ -77,8 +77,6 @@ type home struct {
 
 	// keySent is used to manage underlining menu items
 	keySent bool
-	// changeProgramInput is the current input for changing the program
-	changeProgramInput string
 
 	// -- UI Components --
 
@@ -94,6 +92,10 @@ type home struct {
 	spinner spinner.Model
 	// textInputOverlay handles text input with state
 	textInputOverlay *overlay.TextInputOverlay
+	// changeProgramOverlay handles program change input (legacy - kept for compatibility)
+	changeProgramOverlay *overlay.TextInputOverlay
+	// programListOverlay displays selectable programs for changing program
+	programListOverlay *overlay.ProgramListOverlay
 	// textOverlay displays text information
 	textOverlay *overlay.TextOverlay
 	// confirmationOverlay displays confirmation modals
@@ -182,6 +184,12 @@ func (m *home) updateHandleWindowSizeEvent(msg tea.WindowSizeMsg) {
 
 	if m.textInputOverlay != nil {
 		m.textInputOverlay.SetSize(int(float32(msg.Width)*0.6), int(float32(msg.Height)*0.4))
+	}
+	if m.changeProgramOverlay != nil {
+		m.changeProgramOverlay.SetSize(int(float32(msg.Width)*0.6), int(float32(msg.Height)*0.4))
+	}
+	if m.programListOverlay != nil {
+		m.programListOverlay.SetSize(int(float32(msg.Width)*0.6), int(float32(msg.Height)*0.4))
 	}
 	if m.textOverlay != nil {
 		m.textOverlay.SetWidth(int(float32(msg.Width) * 0.6))
@@ -450,32 +458,30 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 
 		return m, nil
 	} else if m.state == stateChangeProgram {
-		// Handle quit commands first. Don't handle q because the user might want to type that.
-		if msg.String() == "ctrl+c" {
+		// Delegate key handling to the programListOverlay
+		if m.programListOverlay == nil {
+			// If overlay is missing, reset state to default to avoid being stuck
+			log.ErrorLog.Printf("program list overlay is nil")
 			m.state = stateDefault
-			m.changeProgramInput = ""
-			return m, tea.Sequence(
-				tea.WindowSize(),
-				func() tea.Msg {
-					m.menu.SetState(ui.StateDefault)
-					return nil
-				},
-			)
+			m.menu.SetState(ui.StateDefault)
+			return m, nil
 		}
-
-		switch msg.Type {
-		// Confirm the new program
-		case tea.KeyEnter:
-			if len(m.changeProgramInput) == 0 {
-				return m, m.handleError(fmt.Errorf("program cannot be empty"))
+		shouldClose := m.programListOverlay.HandleKeyPress(msg)
+		if shouldClose {
+			// If submitted, resolve and set program
+			if m.programListOverlay.IsSubmitted() {
+				val := m.programListOverlay.GetSelected()
+				if len(val) == 0 {
+					// Error and close
+					m.programListOverlay = nil
+					m.state = stateDefault
+					return m, m.handleError(fmt.Errorf("program cannot be empty"))
+				}
+				m.program = config.ResolveProgramCommand(val)
 			}
-
-			// Resolve the program executable (honor shell aliases and PATH) before assigning.
-			// This ensures commands like "aider --model ..." or "codex" are resolved to the actual
-			// binary path when possible.
-			m.program = config.ResolveProgramCommand(m.changeProgramInput)
+			// Close overlay and reset state
+			m.programListOverlay = nil
 			m.state = stateDefault
-			m.changeProgramInput = ""
 			return m, tea.Sequence(
 				tea.WindowSize(),
 				func() tea.Msg {
@@ -483,29 +489,6 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 					return nil
 				},
 			)
-		case tea.KeyRunes:
-			if len(m.changeProgramInput) >= 32 {
-				return m, m.handleError(fmt.Errorf("program cannot be longer than 32 characters"))
-			}
-			m.changeProgramInput += string(msg.Runes)
-		case tea.KeyBackspace:
-			if len(m.changeProgramInput) == 0 {
-				return m, nil
-			}
-			m.changeProgramInput = m.changeProgramInput[:len(m.changeProgramInput)-1]
-		case tea.KeySpace:
-			m.changeProgramInput += " "
-		case tea.KeyEsc:
-			m.state = stateDefault
-			m.changeProgramInput = ""
-			return m, tea.Sequence(
-				tea.WindowSize(),
-				func() tea.Msg {
-					m.menu.SetState(ui.StateDefault)
-					return nil
-				},
-			)
-		default:
 		}
 		return m, nil
 	} else if m.state == stateSelectProgram {
@@ -610,8 +593,14 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 
 		return m, nil
 	case keys.KeyChangeProgram:
-		m.state = stateSelectProgram
-		return m, nil
+		// Open program selection overlay to change the program
+		m.state = stateChangeProgram
+		m.menu.SetState(ui.StatePrompt)
+		// Initialize program list overlay with available programs and preselect current program
+		programs := []string{"claude", "codex", "gemini", "qwen", "crush"}
+		m.programListOverlay = overlay.NewProgramListOverlay(programs, m.program)
+		// Request a window size message so the overlay sizing logic runs
+		return m, tea.Batch(tea.WindowSize())
 	case keys.KeyNew:
 		if m.list.NumInstances() >= GlobalInstanceLimit {
 			return m, m.handleError(
@@ -889,8 +878,10 @@ func (m *home) View() string {
 		}
 		return overlay.PlaceOverlay(0, 0, m.confirmationOverlay.Render(), mainView, true, true)
 	} else if m.state == stateChangeProgram {
-		prompt := "Change program: " + m.changeProgramInput
-		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, prompt)
+		if m.programListOverlay == nil {
+			log.ErrorLog.Printf("program list overlay is nil")
+		}
+		return overlay.PlaceOverlay(0, 0, m.programListOverlay.Render(), mainView, true, true)
 	} else if m.state == stateSelectProgram {
 		programs := []string{
 			"claude",
@@ -906,7 +897,7 @@ func (m *home) View() string {
 		}
 		lines = append(lines, "", "Press number to select, Esc to cancel")
 		prompt := strings.Join(lines, "\n")
-		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, prompt)
+		return lipgloss.Place(80, 3, lipgloss.Center, lipgloss.Center, prompt)
 	} else if m.textOverlay != nil {
 		return overlay.PlaceOverlay(0, 0, m.textOverlay.Render(), mainView, true, true)
 	}
