@@ -1,4 +1,4 @@
-module claude-squad
+module ai-squad
 
 go 1.23.0
 

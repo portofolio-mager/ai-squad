@@ -1,7 +1,7 @@
 version: 2.9
 
 builds:
-  - binary: claude-squad
+  - binary: ai-squad
     goos:
       - darwin
       - linux

@@ -1,9 +1,9 @@
 package tmux
 
 import (
+	"ai-squad/cmd"
+	"ai-squad/log"
 	"bytes"
-	"claude-squad/cmd"
-	"claude-squad/log"
 	"context"
 	"crypto/sha256"
 	"errors"
