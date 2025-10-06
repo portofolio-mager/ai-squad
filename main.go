@@ -1,14 +1,14 @@
 package main
 
 import (
-	"claude-squad/app"
-	cmd2 "claude-squad/cmd"
-	"claude-squad/config"
-	"claude-squad/daemon"
-	"claude-squad/log"
-	"claude-squad/session"
-	"claude-squad/session/git"
-	"claude-squad/session/tmux"
+	"ai-squad/app"
+	cmd2 "ai-squad/cmd"
+	"ai-squad/config"
+	"ai-squad/daemon"
+	"ai-squad/log"
+	"ai-squad/session"
+	"ai-squad/session/git"
+	"ai-squad/session/tmux"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -23,8 +23,8 @@ var (
 	autoYesFlag bool
 	daemonFlag  bool
 	rootCmd     = &cobra.Command{
-		Use:   "claude-squad",
-		Short: "Claude Squad - Manage multiple AI agents like Claude Code, Aider, Codex, and Amp.",
+		Use:   "ai-squad",
+		Short: "AI Squad - Manage multiple AI agents like Claude Code, Aider, Codex, Gemini, Qwen and Amp.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 			log.Initialize(daemonFlag)
@@ -44,7 +44,7 @@ var (
 			}
 
 			if !git.IsGitRepo(currentDir) {
-				return fmt.Errorf("error: claude-squad must be run from within a git repository")
+				return fmt.Errorf("error: ai-squad must be run from within a git repository")
 			}
 
 			cfg := config.LoadConfig()
@@ -135,9 +135,9 @@ var (
 
 	versionCmd = &cobra.Command{
 		Use:   "version",
-		Short: "Print the version number of claude-squad",
+		Short: "Print the version number of ai-squad",
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Printf("claude-squad version %s\n", version)
+			fmt.Printf("ai-squad version %s\n", version)
 			fmt.Printf("https://github.com/portofolio-mager/ai-squad/releases/tag/v%s\n", version)
 		},
 	}

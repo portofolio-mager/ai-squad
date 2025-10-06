@@ -1,8 +1,8 @@
 package git
 
 import (
-	"claude-squad/config"
-	"claude-squad/log"
+	"ai-squad/config"
+	"ai-squad/log"
 	"fmt"
 	"path/filepath"
 	"time"

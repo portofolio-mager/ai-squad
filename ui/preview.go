@@ -1,7 +1,7 @@
 package ui
 
 import (
-	"claude-squad/session"
+	"ai-squad/session"
 	"fmt"
 	"strings"
 
