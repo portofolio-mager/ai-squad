@@ -20,6 +20,16 @@ import (
 
 const GlobalInstanceLimit = 10
 
+var programs = []string{
+	"claude",
+	"codex",
+	"gemini",
+	"qwen",
+	"crush",
+	"coder",
+	"opencode",
+}
+
 // Run is the main entrypoint into the application.
 func Run(ctx context.Context, program string, autoYes bool) error {
 	p := tea.NewProgram(
@@ -530,14 +540,6 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 		}
 		return m, nil
 	} else if m.state == stateSelectProgram {
-		programs := []string{
-			"claude",
-			"codex",
-			"gemini",
-			"qwen",
-			"crush",
-		}
-
 		// Handle cancel/escape first
 		if msg.String() == "esc" || msg.String() == "ctrl+c" {
 			m.state = stateDefault
@@ -635,7 +637,6 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 		m.state = stateChangeProgram
 		m.menu.SetState(ui.StatePrompt)
 		// Initialize program list overlay with available programs and preselect current program
-		programs := []string{"claude", "codex", "gemini", "qwen", "crush"}
 		m.programListOverlay = overlay.NewProgramListOverlay(programs, m.program)
 		// Request a window size message so the overlay sizing logic runs
 		return m, tea.Batch(tea.WindowSize())
