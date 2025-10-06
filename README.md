@@ -23,13 +23,13 @@
 
 ### Installation
 
-Both Homebrew and manual installation will install AI Squad as `cs` on your system.
+Both Homebrew and manual installation will install AI Squad as `ais` on your system.
 
 #### Homebrew
 
 ```bash
 brew install ai-squad
-ln -s "$(brew --prefix)/bin/ai-squad" "$(brew --prefix)/bin/cs"
+ln -s "$(brew --prefix)/bin/ai-squad" "$(brew --prefix)/bin/ais"
 ```
 
 #### Manual
@@ -40,7 +40,7 @@ AI Squad can also be installed by running the following command:
 curl -fsSL https://raw.githubusercontent.com/portofolio-mager/ai-squad/main/install.sh | bash
 ```
 
-This puts the `cs` binary in `~/.local/bin`.
+This puts the `ais` binary in `~/.local/bin`.
 
 To use a custom name for the binary:
 
@@ -57,8 +57,8 @@ curl -fsSL https://raw.githubusercontent.com/portofolio-mager/ai-squad/main/inst
 
 ```
 Usage:
-  cs [flags]
-  cs [command]
+  ais [flags]
+  ais [command]
 
 Available Commands:
   completion  Generate the autocompletion script for the specified shell
@@ -76,7 +76,7 @@ Flags:
 Run the application with:
 
 ```bash
-cs
+ais
 ```
 NOTE: The default program is `claude` and we recommend using the latest version.
 
@@ -85,10 +85,12 @@ NOTE: The default program is `claude` and we recommend using the latest version.
 <b>Using AI Squad with other AI assistants:</b>
 - For [Codex](https://github.com/openai/codex): Set your API key with `export OPENAI_API_KEY=<your_key>`
 - Launch with specific assistants:
-   - Codex: `cs -p "codex"`
-   - Aider: `cs -p "aider ..."`
-   - Gemini: `cs -p "gemini"`
-- Make this the default, by modifying the config file (locate with `cs debug`)
+   - Codex: `ais -p "codex"`
+   - Aider: `ais -p "aider ..."`
+   - Gemini: `ais -p "gemini"`
+   - Qwen: `ais -p "qwen"`
+   - Crush: `ais -p "crush"`
+- Make this the default, by modifying the config file (locate with `ais debug`)
 
 <br />
 
