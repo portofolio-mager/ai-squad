@@ -57,6 +57,7 @@ var GlobalKeyStringsMap = map[string]KeyName{
 	"r":          KeyResume,
 	"p":          KeySubmit,
 	"P":          KeyChangeProgram,
+	"a":          KeyChangeProgram,
 	"l":          KeyListProgram,
 	"?":          KeyHelp,
 }
@@ -130,6 +131,8 @@ var GlobalkeyBindings = map[KeyName]key.Binding{
 	KeyChangeProgram: key.NewBinding(
 		key.WithKeys("P"),
 		key.WithHelp("P", "change program"),
+		key.WithKeys("a"),
+		key.WithHelp("a", "change program"),
 	),
 	KeyListProgram: key.NewBinding(
 		key.WithKeys("l"),

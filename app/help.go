@@ -169,6 +169,7 @@ func (m *home) handleHelpState(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	shouldClose := m.textOverlay.HandleKeyPress(msg)
 	if shouldClose {
 		m.state = stateDefault
+		m.textOverlay = nil
 		return m, tea.Sequence(
 			tea.WindowSize(),
 			func() tea.Msg {
