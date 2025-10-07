@@ -4,3 +4,4 @@ ai-squad
 **.DS_Store
 cs
 .vscode/
+*.code-workspace
