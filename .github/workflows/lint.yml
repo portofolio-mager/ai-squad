@@ -2,14 +2,14 @@ name: Lint
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, dev ]
     paths:
       - '**.go'
       - 'go.mod'
       - 'go.sum'
       - '.github/workflows/lint.yml'
   pull_request:
-    branches: [ main ]
+    branches: [ main, dev ]
     paths:
       - '**.go'
       - 'go.mod'
