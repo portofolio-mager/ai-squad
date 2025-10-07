@@ -267,7 +267,7 @@ check_and_install_dependencies() {
 
 main() {
     # Parse command line arguments
-    INSTALL_NAME="cs"
+    INSTALL_NAME="ais"
     UPGRADE_MODE=false
     
     while [[ $# -gt 0 ]]; do
