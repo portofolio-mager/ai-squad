@@ -65,9 +65,9 @@ export default function Home() {
           <h3>Via Shell Script</h3>
           <div className={styles.codeBlockWrapper}>
             <pre className={styles.codeBlock}>
-              <code>curl -fsSL https://raw.githubusercontent.com/stmg-ai/ai-squad/main/install.sh | bash</code>
+              <code>curl -fsSL https://raw.githubusercontent.com/portofolio-mager/ai-squad/dev/install.sh | bash</code>
             </pre>
-            <CopyButton textToCopy="curl -fsSL https://raw.githubusercontent.com/stmg-ai/ai-squad/main/install.sh | bash" />
+            <CopyButton textToCopy="curl -fsSL https://raw.githubusercontent.com/portofolio-mager/ai-squad/dev/install.sh | bash" />
           </div>
           <p className={styles.prerequisites}>
             Prerequisites: tmux, gh (GitHub CLI)
@@ -85,7 +85,7 @@ export default function Home() {
       </main>
       <footer className={styles.footer}>
         <p className={styles.copyright}>
-          &copy; {new Date().getFullYear()} AI Squad. Licensed under <a href="https://github.com/portofolio-mager/ai-squad/blob/main/LICENSE.md" target="_blank" rel="noopener noreferrer">GNU AGPL v3.0</a>
+          &copy; {new Date().getFullYear()} AI Squad. Licensed under <a href="https://github.com/portofolio-mager/ai-squad/blob/dev/LICENSE.md" target="_blank" rel="noopener noreferrer">GNU AGPL v3.0</a>
         </p>
       </footer>
     </div>

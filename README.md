@@ -25,19 +25,12 @@
 
 Both Homebrew and manual installation will install AI Squad as `ais` on your system.
 
-#### Homebrew (not published yet)
-
-```bash
-brew install ai-squad
-ln -s "$(brew --prefix)/bin/ai-squad" "$(brew --prefix)/bin/ais"
-```
-
 #### Manual
 
 AI Squad can also be installed by running the following command:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/portofolio-mager/ai-squad/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/portofolio-mager/ai-squad/dev/install.sh | bash
 ```
 
 This puts the `ais` binary in `~/.local/bin`.
@@ -45,7 +38,14 @@ This puts the `ais` binary in `~/.local/bin`.
 To use a custom name for the binary:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/portofolio-mager/ai-squad/main/install.sh | bash -s -- --name <your-binary-name>
+curl -fsSL https://raw.githubusercontent.com/portofolio-mager/ai-squad/dev/install.sh | bash -s -- --name <your-binary-name>
+```
+
+#### Homebrew (not published yet)
+
+```bash
+brew install ai-squad
+ln -s "$(brew --prefix)/bin/ai-squad" "$(brew --prefix)/bin/ais"
 ```
 
 ### Prerequisites
