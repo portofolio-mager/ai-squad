@@ -138,7 +138,7 @@ type home struct {
 	// textInputOverlay handles text input with state
 	textInputOverlay *overlay.TextInputOverlay
 	// changeProgramOverlay handles program change input (legacy - kept for compatibility)
-	changeProgramOverlay *overlay.TextInputOverlay
+	// changeProgramOverlay *overlay.TextInputOverlay
 	// programListOverlay displays selectable programs for changing program
 	programListOverlay *overlay.ProgramListOverlay
 	// textOverlay displays text information
@@ -2522,13 +2522,6 @@ func (m *home) handleGitStatusState(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
-}
-
-func (m *home) showTestResults(output string) {
-	// Create text overlay with test results
-	m.textOverlay = overlay.NewTextOverlay(output)
-	m.state = stateHelp // Use help state since it handles text overlay display
-	m.menu.SetState(ui.StateDefault)
 }
 
 func (m *home) showErrorLog() (tea.Model, tea.Cmd) {

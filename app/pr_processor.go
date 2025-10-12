@@ -12,18 +12,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type processCommentMsg struct {
-	comment git.PRComment
-	index   int
-	total   int
-}
-
-type commentProcessedMsg struct {
-	comment git.PRComment
-	success bool
-	err     error
-}
-
 type allCommentsProcessedMsg struct{}
 
 func (m *home) processAcceptedComments(comments []*git.PRComment) tea.Cmd {
@@ -96,19 +84,6 @@ func (m *home) processCommentsSequentially(comments []*git.PRComment) tea.Cmd {
 
 		return allCommentsProcessedMsg{}
 	}
-}
-
-func (m *home) sendCommentToClaude(comment *git.PRComment) error {
-	selected := m.list.GetSelectedInstance()
-	if selected == nil {
-		return fmt.Errorf("no instance selected")
-	}
-
-	// Format the comment as a prompt for Claude
-	prompt := m.formatCommentAsPrompt(comment, 1, 1)
-
-	// Send prompt to the instance
-	return selected.SendPrompt(prompt)
 }
 
 func (m *home) formatCommentAsPrompt(comment *git.PRComment, index int, total int) string {
