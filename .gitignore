@@ -6,4 +6,5 @@ cs
 ais
 csa
 .vscode/
+.claude/
 *.code-workspace
