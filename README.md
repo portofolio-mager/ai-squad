@@ -133,6 +133,12 @@ underlying program (ex. `claude`) to the latest version.
 
 [AGPL-3.0](LICENSE.md)
 
+### Contributing
+
+By creating a pull request and having it merged into this project, you agree to the [Contributor License Agreement (CLA)](CLA.md). This ensures that all contributions are properly licensed under the project's [AGPL-3.0 license](LICENSE.md).
+
+We welcome contributions! Please feel free to submit issues and pull requests.
+
 ### Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=portofolio-mager/ai-squad&type=Date)](https://www.star-history.com/#portofolio-mager/ai-squad&Date)
