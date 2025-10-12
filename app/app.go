@@ -9,6 +9,7 @@ import (
 	"ai-squad/ui"
 	"ai-squad/ui/overlay"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -428,10 +429,10 @@ func (m *home) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		*m.prReviewOverlay = updatedModel
 
 		// Check for completion or cancellation messages
-		switch msg.(type) {
+		switch msg := msg.(type) {
 		case ui.PRReviewCompleteMsg:
 			// Handle accepted comments
-			acceptedComments := msg.(ui.PRReviewCompleteMsg).AcceptedComments
+			acceptedComments := msg.AcceptedComments
 			m.state = stateDefault
 			m.prReviewOverlay = nil
 
@@ -447,7 +448,7 @@ func (m *home) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case ui.PRReviewShowCommentMsg:
 			// Show comment detail overlay
-			showMsg := msg.(ui.PRReviewShowCommentMsg)
+			showMsg := msg
 			m.commentDetailOverlay = overlay.NewCommentDetailOverlay(showMsg.Comment)
 			// We'll set the size in the next WindowSizeMsg
 			m.state = stateCommentDetail
@@ -614,7 +615,7 @@ func (m *home) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if isDirty {
-			return m, m.handleError(fmt.Errorf(cannotRebaseUncommittedChangesError))
+			return m, m.handleError(errors.New(cannotRebaseUncommittedChangesError))
 		}
 
 		// Get current commit SHA before rebase
@@ -630,7 +631,7 @@ func (m *home) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				log.InfoLog.Printf("Rebase conflict detected for branch %s", worktree.GetBranchName())
 
 				// Display the error with instructions
-				errorCmd := m.handleError(fmt.Errorf("Rebase conflicts detected. IDE opened at %s\nResolve conflicts, complete rebase, and push to remote", rebaseErr.TempDir))
+				errorCmd := m.handleError(fmt.Errorf("rebase conflicts detected. editor opened at %s\nresolve conflicts, complete rebase, and push to remote", rebaseErr.TempDir))
 
 				// Set rebase in progress state
 				m.rebaseInProgress = true
@@ -675,7 +676,7 @@ func (m *home) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Show success message in the status bar
 		successMsg := fmt.Sprintf("✓ Git reset for branch %s completed successfully", branchName)
-		m.errBox.SetError(fmt.Errorf(successMsg))
+		m.errBox.SetError(errors.New(successMsg))
 
 		// Also add to log for history
 		timestamp := time.Now().Format("15:04:05")
@@ -762,7 +763,7 @@ func (m *home) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Show success message
 		// Note: Using error box for now to show success message
-		successErr := fmt.Errorf("✓ PR comments processed successfully!")
+		successErr := errors.New("pr comments processed successfully")
 		m.errBox.SetError(successErr)
 		return m, func() tea.Msg {
 			time.Sleep(3 * time.Second)
@@ -798,7 +799,7 @@ func (m *home) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.errorLog = append(m.errorLog, fmt.Sprintf("[%s] Resolved %d of %d review threads (some failed)", timestamp, msg.resolved, msg.total))
 			}
 
-			successErr := fmt.Errorf(message)
+			successErr := errors.New(message)
 			m.errBox.SetError(successErr)
 		}
 
@@ -829,7 +830,7 @@ func (m *home) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.resolveAllPRConversations()
 	case testStartedMsg:
 		// Show non-obtrusive message that tests are running
-		m.errBox.SetError(fmt.Errorf("Running Jest tests..."))
+		m.errBox.SetError(errors.New("running jest tests"))
 		return m, nil
 	case testProgressMsg:
 		// Update test progress
@@ -839,7 +840,7 @@ func (m *home) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		} else {
 			status = fmt.Sprintf("Tests complete: %d/%d passed, %d failed", msg.passed, msg.total, msg.failed)
 		}
-		m.errBox.SetError(fmt.Errorf(status))
+		m.errBox.SetError(errors.New(status))
 		return m, nil
 	case testResultsMsg:
 		// Handle test results
@@ -862,19 +863,17 @@ func (m *home) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				cmd.Start()
 			}
 			// Show brief status about failed tests with counts
-			m.errBox.SetError(fmt.Errorf("Tests completed: %d/%d passed, %d failed. Opening failed files in IDE (%s)",
+			m.errBox.SetError(fmt.Errorf("tests completed: %d/%d passed, %d failed. Opening failed files in editor (%s)",
 				finalStats.passed, finalStats.total, finalStats.failed, ideCommand))
 		} else {
 			// All tests passed
-			m.errBox.SetError(fmt.Errorf("All tests passed! %d/%d test suites completed",
+			m.errBox.SetError(fmt.Errorf("all tests passed! %d/%d test suites completed",
 				finalStats.passed, finalStats.total))
 		}
 
 		// Auto-hide the message after 5 seconds (give more time to read the stats)
 		return m, func() tea.Msg {
-			select {
-			case <-time.After(5 * time.Second):
-			}
+			time.Sleep(5 * time.Second)
 			return hideErrMsg{}
 		}
 	}
@@ -953,7 +952,8 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 		return m.handleCommentDetailState(msg)
 	}
 
-	if m.state == stateNew {
+	switch m.state {
+	case stateNew:
 		// Handle quit commands first. Don't handle q because the user might want to type that.
 		if msg.String() == "ctrl+c" {
 			m.state = stateDefault
@@ -1028,7 +1028,7 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 		default:
 		}
 		return m, nil
-	} else if m.state == statePrompt {
+	case statePrompt:
 		// Use the new TextInputOverlay component to handle all key events
 		shouldClose := m.textInputOverlay.HandleKeyPress(msg)
 
@@ -1060,7 +1060,7 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 		}
 
 		return m, nil
-	} else if m.state == stateChangeProgram {
+	case stateChangeProgram:
 		// Delegate key handling to the programListOverlay
 		if m.programListOverlay == nil {
 			// If overlay is missing, reset state to default to avoid being stuck
@@ -1094,7 +1094,7 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 			)
 		}
 		return m, nil
-	} else if m.state == stateSelectProgram {
+	case stateSelectProgram:
 		// Handle cancel/escape first
 		if msg.String() == "esc" || msg.String() == "ctrl+c" {
 			m.state = stateDefault
@@ -1114,7 +1114,7 @@ func (m *home) handleKeyPress(msg tea.KeyMsg) (mod tea.Model, cmd tea.Cmd) {
 				return m, nil
 			}
 		}
-	} else if m.state == stateBookmark {
+	case stateBookmark:
 		// Handle bookmark state
 		shouldClose := m.textInputOverlay.HandleKeyPress(msg)
 
@@ -1799,7 +1799,7 @@ func (m *home) openFileInExternalDiff(instance *session.Instance, filePath strin
 		diffCommand := config.GetEffectiveDiffCommand(worktreePath, globalConfig)
 
 		if diffCommand == "" {
-			return fmt.Errorf(noExternalDiffToolConfiguredError)
+			return errors.New(noExternalDiffToolConfiguredError)
 		}
 
 		// Construct the full path to the file using the worktree path
@@ -2010,7 +2010,7 @@ func (m *home) requestResolveAllConversationsConfirmation() (tea.Model, tea.Cmd)
 
 			// For PR review state, just show error
 			if m.state == statePRReview {
-				m.errBox.SetError(fmt.Errorf("No unresolved review threads found on this PR"))
+				m.errBox.SetError(errors.New("no unresolved review threads found on this pull request"))
 				return m, func() tea.Msg {
 					time.Sleep(2 * time.Second)
 					return hideErrMsg{}
@@ -2441,7 +2441,7 @@ func (m *home) View() string {
 	return mainView
 }
 
-func (m *home) handleErrorLogState(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *home) handleErrorLogState(_ tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Any key press closes the error log
 	m.state = stateDefault
 	m.textOverlay = nil
