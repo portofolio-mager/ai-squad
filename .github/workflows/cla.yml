@@ -30,7 +30,7 @@ jobs:
           remote-repository-name: 'ai-squad-clas'
 
           # Exempt members of the portofolio-mager organization from signing the CLA
-          allowlist: '*[bot],mufeez-amjad,jayshrivastava'
+          allowlist: '*[bot],mufeez-amjad,jayshrivastava,tonidy'
           exempt-organizations: 'portofolio-mager'
 
           custom-notsigned-prcomment: 'Thank you for your contribution! Please sign the [CLA](https://github.com/portofolio-mager/ai-squad/blob/dev/CLA.md) before we can merge your pull request. You can sign the CLA by just posting a comment following the below format.'

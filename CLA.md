@@ -48,4 +48,4 @@ By submitting a Contribution to the Project, you agree to be bound by the terms 
 
 <br />
 
-*Questions? Contact [mufeez.amjad@outlook.com](mailto:mufeez.amjad@outlook.com) or [jshrivastava03@gmail.com](mailto:jshrivastava03@gmail.com)*
+*Questions? Create a discussion here https://github.com/portofolio-mager/ai-squad/discussions/new/choose*
