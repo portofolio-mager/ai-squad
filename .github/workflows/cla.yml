@@ -26,7 +26,7 @@ jobs:
           path-to-document: 'https://github.com/portofolio-mager/ai-squad/blob/dev/CLA.md'
           branch: 'main'
 
-          remote-organization-name: 'portofolio-mager'
+          remote-organization-name: 'tonidy'
           remote-repository-name: 'ai-squad-clas'
 
           # Exempt members of the portofolio-mager organization from signing the CLA
