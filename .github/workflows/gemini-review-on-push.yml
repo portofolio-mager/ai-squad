@@ -1,0 +1,38 @@
+# Name of the workflow, which will be displayed in the "Actions" tab of your GitHub repository.
+name: Request Gemini Review
+
+# This section defines the trigger for the workflow.
+on:
+  # The workflow runs on events related to a pull request.
+  pull_request:
+    # Specifically, it triggers on the 'synchronize' event type.
+    # This event occurs whenever the head branch of a pull request is updated,
+    # for example, when new commits are pushed to the branch.
+    types: [synchronize]
+
+# This section defines the jobs to be executed as part of the workflow.
+jobs:
+  # A single job in this workflow, named 'add_review_comment'.
+  add_review_comment:
+    # Specifies that the job will run on a virtual machine with the latest version of Ubuntu.
+    runs-on: ubuntu-latest
+
+    # Grants the necessary permissions for the GITHUB_TOKEN used in this job.
+    # We need write access to pull requests to be able to post a comment.
+    permissions:
+      pull-requests: write
+
+    # This section lists the steps that make up the job.
+    steps:
+      # This step uses a pre-built action from the GitHub Marketplace to add a comment to the PR.
+      - name: Add /gemini review comment
+        uses: thollander/actions-comment-pull-request@v2
+        with:
+          # The exact message that will be posted as a comment.
+          message: /gemini review
+          
+          # Use a Personal Access Token (PAT) to comment as a specific GitHub user.
+          # You need to create a PAT in your GitHub settings and add it as a repository secret.
+          # Name the secret 'USER_PAT' or adjust the name below to match your secret name.
+          # Without a PAT, comments will appear from 'github-actions[bot]'.
+          GITHUB_TOKEN: ${{ secrets.USER_PAT }}

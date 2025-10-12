@@ -59,6 +59,15 @@ func (t *TextInputOverlay) View() string {
 // HandleKeyPress processes a key press and updates the state accordingly.
 // Returns true if the overlay should be closed.
 func (t *TextInputOverlay) HandleKeyPress(msg tea.KeyMsg) bool {
+	// Check for shift+enter first using string representation
+	if msg.String() == "shift+enter" {
+		// Allow shift+enter to add newline in textarea
+		if t.FocusIndex == 0 {
+			t.textarea, _ = t.textarea.Update(msg)
+		}
+		return false
+	}
+
 	switch msg.Type {
 	case tea.KeyTab:
 		// Toggle focus between input and enter button.
@@ -90,7 +99,12 @@ func (t *TextInputOverlay) HandleKeyPress(msg tea.KeyMsg) bool {
 			}
 			return true
 		}
-		fallthrough // Send enter key to textarea
+		// When textarea is focused, plain Enter submits the form
+		t.Submitted = true
+		if t.OnSubmit != nil {
+			t.OnSubmit()
+		}
+		return true
 	default:
 		if t.FocusIndex == 0 {
 			t.textarea, _ = t.textarea.Update(msg)
@@ -154,7 +168,14 @@ func (t *TextInputOverlay) Render() string {
 	} else {
 		enterButton = buttonStyle.Render(enterButton)
 	}
-	content += enterButton
+
+	// Add hint about keyboard shortcuts
+	hintStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Italic(true)
+	hint := hintStyle.Render("Press Enter to submit • Shift+Enter for newline • Esc to cancel")
+
+	content += enterButton + "\n\n" + hint
 
 	return style.Render(content)
 }

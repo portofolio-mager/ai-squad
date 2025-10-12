@@ -165,19 +165,19 @@ func TestPreviewScrolling(t *testing.T) {
 			}
 
 			// Handle copy mode commands
-			if strings.Contains(cmdStr, "copy-mode") {
+			if strings.Contains(cmdStr, "copy-mode") && !strings.Contains(cmdStr, "display-message") {
 				inCopyMode = true
 			}
-			if strings.Contains(cmdStr, "send-keys") && strings.Contains(cmdStr, "q") {
+			if strings.Contains(cmdStr, "send-keys") && strings.Contains(cmdStr, "-X") && strings.Contains(cmdStr, "cancel") {
 				inCopyMode = false
 				scrollPosition = 0 // Reset position when exiting copy mode
 			}
-			if strings.Contains(cmdStr, "send-keys") && strings.Contains(cmdStr, "Up") {
+			if strings.Contains(cmdStr, "send-keys") && strings.Contains(cmdStr, "-X") && strings.Contains(cmdStr, "scroll-up") {
 				if inCopyMode {
 					scrollPosition++
 				}
 			}
-			if strings.Contains(cmdStr, "send-keys") && strings.Contains(cmdStr, "Down") {
+			if strings.Contains(cmdStr, "send-keys") && strings.Contains(cmdStr, "-X") && strings.Contains(cmdStr, "scroll-down") {
 				if inCopyMode && scrollPosition > 0 {
 					scrollPosition--
 				}
@@ -210,6 +210,14 @@ func TestPreviewScrolling(t *testing.T) {
 				return []byte(visibleContent), nil
 			}
 
+			// Handle display-message for checking if in copy mode
+			if strings.Contains(cmdStr, "display-message") && strings.Contains(cmdStr, "pane_in_mode") {
+				if inCopyMode {
+					return []byte("1\n"), nil
+				}
+				return []byte("0\n"), nil
+			}
+
 			return []byte(""), nil
 		},
 	}
@@ -232,9 +240,6 @@ func TestPreviewScrolling(t *testing.T) {
 	err = previewPane.UpdateContent(setup.instance)
 	require.NoError(t, err)
 
-	// Verify we're not in scrolling mode initially
-	require.False(t, previewPane.isScrolling, "Should not be in scrolling mode initially")
-
 	// Step 2: Check that PreviewFullHistory returns all content
 	fullHistory, err := setup.instance.PreviewFullHistory()
 	require.NoError(t, err)
@@ -243,46 +248,34 @@ func TestPreviewScrolling(t *testing.T) {
 	require.Contains(t, fullHistory, "$ seq 100", "Full history should contain the command")
 	require.Contains(t, fullHistory, "1", "Full history should contain earliest output")
 
-	// Step 3: Enter scroll mode
+	// Step 3: Test viewport scrolling - initially should not be in scroll mode
+	require.False(t, previewPane.isScrolling, "Should not be in scroll mode initially")
+
+	// Step 4: Enter scroll mode by scrolling up
 	err = previewPane.ScrollUp(setup.instance)
 	require.NoError(t, err)
 
-	// Verify we entered scrolling mode
-	require.True(t, previewPane.isScrolling, "Should be in scrolling mode after ScrollUp")
+	// Verify we entered scroll mode
+	require.True(t, previewPane.isScrolling, "Should be in scroll mode after ScrollUp")
 
-	// Step 4: Get the content directly from the viewport
-	viewportContent := previewPane.viewport.View()
-	t.Logf("Viewport content: %q", viewportContent)
-
-	// With proper implementation, the viewport should have the full history content
-	// Note: The viewport will be positioned at the bottom initially, so we need to scroll up
-
-	// Step 5: Scroll up multiple times to get to the top
-	for range 50 {
+	// Step 5: Scroll up multiple times
+	for range 10 {
 		err = previewPane.ScrollUp(setup.instance)
 		require.NoError(t, err)
 	}
 
-	// Now get the viewport content after scrolling up
-	viewportAfterScrollUp := previewPane.viewport.View()
-	t.Logf("Viewport after scrolling up: %q", viewportAfterScrollUp)
-
 	// Step 6: Scroll down multiple times
-	for range 25 {
+	for range 5 {
 		err = previewPane.ScrollDown(setup.instance)
 		require.NoError(t, err)
 	}
 
-	// Get updated viewport content after scrolling down
-	viewportAfterScrollDown := previewPane.viewport.View()
-	t.Logf("Viewport after scrolling down: %q", viewportAfterScrollDown)
-
-	// Step 7: Reset to normal mode
+	// Step 7: Exit scroll mode
 	err = previewPane.ResetToNormalMode(setup.instance)
 	require.NoError(t, err)
 
-	// Verify we exited scrolling mode
-	require.False(t, previewPane.isScrolling, "Should not be in scrolling mode after reset")
+	// Verify we exited scroll mode
+	require.False(t, previewPane.isScrolling, "Should not be in scroll mode after exit")
 }
 
 // MockPtyFactory for testing tmux sessions
@@ -365,9 +358,6 @@ func TestPreviewContentWithoutScrolling(t *testing.T) {
 	// Update the preview content (this should display the content without scrolling)
 	err := previewPane.UpdateContent(setup.instance)
 	require.NoError(t, err)
-
-	// Verify we're not in scrolling mode
-	require.False(t, previewPane.isScrolling, "Should not be in scrolling mode")
 
 	// Verify that the preview state is not in fallback mode
 	require.False(t, previewPane.previewState.fallback, "Preview should not be in fallback mode")

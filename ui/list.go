@@ -149,6 +149,10 @@ func (r *InstanceRenderer) Render(i *session.Instance, idx int, selected bool, h
 		join = readyStyle.Render(readyIcon)
 	case session.Paused:
 		join = pausedStyle.Render(pausedIcon)
+	case session.Creating:
+		join = fmt.Sprintf("%s ", r.spinner.View())
+	case session.Deleting:
+		join = fmt.Sprintf("%s ", r.spinner.View())
 	default:
 	}
 
@@ -518,6 +522,11 @@ func (l *List) Kill() {
 	// Kill the tmux session
 	if err := targetInstance.Kill(); err != nil {
 		log.ErrorLog.Printf("could not kill instance: %v", err)
+		// If normal kill fails, try force kill
+		log.InfoLog.Printf("attempting force kill for instance: %s", targetInstance.Title)
+		if forceErr := targetInstance.ForceKill(); forceErr != nil {
+			log.ErrorLog.Printf("force kill also failed: %v", forceErr)
+		}
 	}
 
 	// If you delete the last one in the list, select the previous one.
@@ -543,6 +552,12 @@ func (l *List) Kill() {
 func (l *List) Attach() (chan struct{}, error) {
 	targetInstance := l.items[l.selectedIdx]
 	return targetInstance.Attach()
+}
+
+// AttachToPane attaches to the selected instance focusing on the specified pane
+func (l *List) AttachToPane(paneIndex int) (chan struct{}, error) {
+	targetInstance := l.items[l.selectedIdx]
+	return targetInstance.AttachToPane(paneIndex)
 }
 
 // Up selects the prev item in the list.

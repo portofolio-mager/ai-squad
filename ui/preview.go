@@ -86,40 +86,26 @@ func (p *PreviewPane) UpdateContent(instance *session.Instance) error {
 		return nil
 	}
 
-	var content string
-	var err error
+	// If in scroll mode, don't update content (to preserve scroll position)
+	if p.isScrolling {
+		return nil
+	}
 
-	// If in scroll mode but haven't captured content yet, do it now
-	if p.isScrolling && p.viewport.Height > 0 && len(p.viewport.View()) == 0 {
-		// Capture full pane content including scrollback history using capture-pane -p -S -
-		content, err = instance.PreviewFullHistory()
-		if err != nil {
-			return err
-		}
+	// In normal mode, use the usual preview
+	content, err := instance.Preview()
+	if err != nil {
+		return err
+	}
 
-		// Set content in the viewport
-		footer := lipgloss.NewStyle().
-			Foreground(lipgloss.AdaptiveColor{Light: "#808080", Dark: "#808080"}).
-			Render("ESC to exit scroll mode")
-
-		p.viewport.SetContent(lipgloss.JoinVertical(lipgloss.Left, content, footer))
-	} else if !p.isScrolling {
-		// In normal mode, use the usual preview
-		content, err = instance.Preview()
-		if err != nil {
-			return err
-		}
-
-		// Always update the preview state with content, even if empty
-		// This ensures that newly created instances will display their content immediately
-		if len(content) == 0 && !instance.Started() {
-			p.setFallbackState("Please enter a name for the instance.")
-		} else {
-			// Update the preview state with the current content
-			p.previewState = previewState{
-				fallback: false,
-				text:     content,
-			}
+	// Always update the preview state with content, even if empty
+	// This ensures that newly created instances will display their content immediately
+	if len(content) == 0 && !instance.Started() {
+		p.setFallbackState("Please enter a name for the instance.")
+	} else {
+		// Update the preview state with the current content
+		p.previewState = previewState{
+			fallback: false,
+			text:     content,
 		}
 	}
 
@@ -165,7 +151,7 @@ func (p *PreviewPane) String() string {
 			Render(strings.Join(lines, ""))
 	}
 
-	// If in copy mode, use the viewport to display scrollable content
+	// If in scroll mode, use the viewport to display scrollable content
 	if p.isScrolling {
 		return p.viewport.View()
 	}
@@ -254,7 +240,7 @@ func (p *PreviewPane) ScrollDown(instance *session.Instance) error {
 		return nil
 	}
 
-	// Already in copy mode, just scroll the viewport
+	// Already in scroll mode, just scroll the viewport
 	p.viewport.LineDown(1)
 	return nil
 }
