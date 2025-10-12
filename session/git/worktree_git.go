@@ -449,14 +449,6 @@ func (g *GitWorktree) rebaseWithClone(mainBranch, backupBranch string) error {
 	// Rebase succeeded in clone - now we need to copy the changes back
 	log.InfoLog.Printf("Rebase succeeded in clone, copying changes back to worktree...")
 
-	// Get the new commit SHA after rebase
-	newSHA, err := g.runGitCommand(tempDir, "rev-parse", "HEAD")
-	if err != nil {
-		os.RemoveAll(tempDir)
-		return fmt.Errorf("failed to get new commit SHA: %w", err)
-	}
-	newSHA = strings.TrimSpace(newSHA)
-
 	// Force update the branch in the worktree to match the rebased state
 	if _, err := g.runGitCommand(g.worktreePath, "fetch", "origin"); err != nil {
 		os.RemoveAll(tempDir)
