@@ -137,4 +137,4 @@ underlying program (ex. `claude`) to the latest version.
 
 [![Star History Chart](https://api.star-history.com/svg?repos=portofolio-mager/ai-squad&type=Date)](https://www.star-history.com/#portofolio-mager/ai-squad&Date)
 
-<!-- trigger -->
+<!-- triggers -->
