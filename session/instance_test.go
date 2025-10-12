@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"claude-squad/session/git"
+	"ai-squad/session/git"
 )
 
 func TestGetSessionPath(t *testing.T) {
