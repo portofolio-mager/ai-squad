@@ -7,4 +7,5 @@ ais
 csa
 .vscode/
 .claude/
+.claude-squad/
 *.code-workspace
