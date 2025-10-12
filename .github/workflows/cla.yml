@@ -24,7 +24,7 @@ jobs:
         with:
           path-to-signatures: 'signatures/version1/cla.json'
           path-to-document: 'https://github.com/portofolio-mager/ai-squad/blob/dev/CLA.md'
-          branch: 'dev'
+          branch: 'main'
 
           remote-organization-name: 'portofolio-mager'
           remote-repository-name: 'ai-squad-clas'
