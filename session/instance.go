@@ -462,6 +462,11 @@ func (i *Instance) Preview() (string, error) {
 		return "", nil
 	}
 
+	// Check for nil gitWorktree
+	if i.gitWorktree == nil {
+		return "", nil
+	}
+
 	// Check if tmux session was killed and needs to be recreated
 	if err := i.ensureTmuxSession(); err != nil {
 		return "", err
@@ -644,6 +649,10 @@ func (i *Instance) TmuxAlive() bool {
 
 // ensureTmuxSession checks if the tmux session exists and recreates it if needed
 func (i *Instance) ensureTmuxSession() error {
+	if i.gitWorktree == nil {
+		return fmt.Errorf("cannot ensure tmux session: gitWorktree is nil")
+	}
+
 	if !i.tmuxSession.DoesSessionExist() {
 		log.InfoLog.Printf("tmux session %s was killed, recreating in %s...", i.tmuxSession.GetSessionName(), i.gitWorktree.GetWorktreePath())
 		// Recreate the session in the correct worktree directory
@@ -666,6 +675,10 @@ func (i *Instance) GetReloadChannel() <-chan struct{} {
 func (i *Instance) ReloadSession() error {
 	if !i.started {
 		return fmt.Errorf("cannot reload session that has not been started")
+	}
+
+	if i.gitWorktree == nil {
+		return fmt.Errorf("cannot reload session: gitWorktree is nil")
 	}
 
 	log.InfoLog.Printf("Reloading tmux session %s in %s...", i.tmuxSession.GetSessionName(), i.gitWorktree.GetWorktreePath())
@@ -704,7 +717,7 @@ func (i *Instance) Pause() error {
 		log.ErrorLog.Print(err)
 	} else if dirty {
 		// Commit changes locally (without pushing to GitHub)
-		commitMsg := fmt.Sprintf("[claudesquad] update from '%s' on %s (paused)", i.Title, time.Now().Format(time.RFC822))
+		commitMsg := fmt.Sprintf("[aisquad] update from '%s' on %s (paused)", i.Title, time.Now().Format(time.RFC822))
 		if err := i.gitWorktree.CommitChanges(commitMsg); err != nil {
 			errs = append(errs, fmt.Errorf("failed to commit changes: %w", err))
 			log.ErrorLog.Print(err)
@@ -965,6 +978,10 @@ func (i *Instance) SendPromptToAI(prompt string) error {
 	}
 
 	log.WarningLog.Printf("Sending prompt to AI pane: %s", prompt[:min(50, len(prompt))])
+
+	if i.gitWorktree == nil {
+		return fmt.Errorf("cannot send prompt: gitWorktree is nil")
+	}
 
 	// First ensure the terminal pane exists (creates split if needed)
 	if err := i.tmuxSession.CreateTerminalPane(i.gitWorktree.GetWorktreePath()); err != nil {

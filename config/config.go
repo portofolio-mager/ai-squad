@@ -14,9 +14,9 @@ import (
 
 var (
 	// Pre-compiled regex patterns for parsing CLAUDE.md
-	claudeSquadSectionRe = regexp.MustCompile(`(?i)\[claude-squad\]([\s\S]*?)(?:\n\[|$)`)
-	ideCommandRe         = regexp.MustCompile(`(?m)^ide_command\s*[:=]\s*(.+)$`)
-	diffCommandRe        = regexp.MustCompile(`(?m)^diff_command\s*[:=]\s*(.+)$`)
+	aiSquadSectionRe = regexp.MustCompile(`(?i)\[ai-squad\]([\s\S]*?)(?:\n\[|$)`)
+	ideCommandRe     = regexp.MustCompile(`(?m)^ide_command\s*[:=]\s*(.+)$`)
+	diffCommandRe    = regexp.MustCompile(`(?m)^diff_command\s*[:=]\s*(.+)$`)
 )
 
 const (
@@ -343,17 +343,17 @@ func (c *Config) ShouldHideLogo(effectiveMode LayoutMode) bool {
 	return effectiveMode == LayoutModeMobile
 }
 
-// LoadRepoConfig loads per-repository configuration from CLAUDE.md or .claude-squad/config.json
+// LoadRepoConfig loads per-repository configuration from CLAUDE.md or .ai-squad/config.json
 // It searches for configuration in the following order:
-// 1. .claude-squad/config.json in the repository root
-// 2. [claude-squad] section in CLAUDE.md in the repository root
+// 1. .ai-squad/config.json in the repository root
+// 2. [ai-squad] section in CLAUDE.md in the repository root
 // 3. Returns empty RepoConfig if no configuration found
 func LoadRepoConfig(repoPath string) *RepoConfig {
 	if repoPath == "" {
 		return &RepoConfig{}
 	}
 
-	// Try .claude-squad/config.json first
+	// Try .ai-squad/config.json first
 	if config := loadRepoConfigFromJSON(repoPath); config != nil {
 		return config
 	}
@@ -366,9 +366,9 @@ func LoadRepoConfig(repoPath string) *RepoConfig {
 	return &RepoConfig{}
 }
 
-// loadRepoConfigFromJSON loads configuration from .claude-squad/config.json in repo root
+// loadRepoConfigFromJSON loads configuration from .ai-squad/config.json in repo root
 func loadRepoConfigFromJSON(repoPath string) *RepoConfig {
-	configPath := filepath.Join(repoPath, ".claude-squad", "config.json")
+	configPath := filepath.Join(repoPath, ".ai-squad", "config.json")
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return nil
@@ -383,7 +383,7 @@ func loadRepoConfigFromJSON(repoPath string) *RepoConfig {
 	return &config
 }
 
-// loadRepoConfigFromCLAUDEMD loads configuration from [claude-squad] section in CLAUDE.md
+// loadRepoConfigFromCLAUDEMD loads configuration from [ai-squad] section in CLAUDE.md
 func loadRepoConfigFromCLAUDEMD(repoPath string) *RepoConfig {
 	claudePath := filepath.Join(repoPath, "CLAUDE.md")
 	data, err := os.ReadFile(claudePath)
@@ -393,8 +393,8 @@ func loadRepoConfigFromCLAUDEMD(repoPath string) *RepoConfig {
 
 	content := string(data)
 
-	// Look for [claude-squad] section
-	matches := claudeSquadSectionRe.FindStringSubmatch(content)
+	// Look for [ai-squad] section
+	matches := aiSquadSectionRe.FindStringSubmatch(content)
 	if len(matches) < 2 {
 		return nil
 	}

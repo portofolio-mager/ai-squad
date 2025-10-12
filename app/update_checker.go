@@ -66,13 +66,13 @@ func (uc *UpdateChecker) CheckNow() {
 
 // checkForUpdates performs the actual update check
 func (uc *UpdateChecker) checkForUpdates() {
-	// Try different methods to find the claude-squad git repository
+	// Try different methods to find the ai-squad git repository
 	gitRoot := ""
 
 	// Method 1: Check if we're already in a git repository (development mode)
 	if currentRoot := findGitRoot("."); currentRoot != "" {
-		// Verify this is claude-squad by checking for specific files
-		if isClaudeSquadRepo(currentRoot) {
+		// Verify this is ai-squad by checking for specific files
+		if isAISquadRepo(currentRoot) {
 			gitRoot = currentRoot
 		}
 	}
@@ -80,15 +80,15 @@ func (uc *UpdateChecker) checkForUpdates() {
 	// Method 2: Check common installation locations
 	if gitRoot == "" {
 		commonPaths := []string{
-			"/usr/local/src/claude-squad",
-			"/opt/claude-squad",
-			"~/src/claude-squad",
-			"~/claude-squad",
+			"/usr/local/src/ai-squad",
+			"/opt/ai-squad",
+			"~/src/ai-squad",
+			"~/ai-squad",
 		}
 
 		for _, path := range commonPaths {
 			expandedPath := os.ExpandEnv(strings.Replace(path, "~", "$HOME", 1))
-			if root := findGitRoot(expandedPath); root != "" && isClaudeSquadRepo(root) {
+			if root := findGitRoot(expandedPath); root != "" && isAISquadRepo(root) {
 				gitRoot = root
 				break
 			}
@@ -113,7 +113,7 @@ func (uc *UpdateChecker) checkForUpdates() {
 				}
 
 				// Search up from the executable location
-				if root := findGitRoot(execDir); root != "" && isClaudeSquadRepo(root) {
+				if root := findGitRoot(execDir); root != "" && isAISquadRepo(root) {
 					gitRoot = root
 				}
 			}
@@ -227,9 +227,9 @@ func getCommitCount(gitRoot, ref string) (int, error) {
 	return count, nil
 }
 
-// isClaudeSquadRepo checks if the given directory is a claude-squad repository
-func isClaudeSquadRepo(gitRoot string) bool {
-	// Check for claude-squad specific files
+// isAISquadRepo checks if the given directory is a ai-squad repository
+func isAISquadRepo(gitRoot string) bool {
+	// Check for ai-squad specific files
 	requiredFiles := []string{
 		"main.go",
 		"go.mod",
@@ -242,11 +242,11 @@ func isClaudeSquadRepo(gitRoot string) bool {
 		}
 	}
 
-	// Additionally check if go.mod contains claude-squad
+	// Additionally check if go.mod contains ai-squad
 	goModContent, err := os.ReadFile(gitRoot + "/go.mod")
 	if err != nil {
 		return false
 	}
 
-	return strings.Contains(string(goModContent), "claude-squad")
+	return strings.Contains(string(goModContent), "ai-squad")
 }

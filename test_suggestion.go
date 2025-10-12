@@ -4,7 +4,7 @@
 package main
 
 import (
-	"claude-squad/ui"
+	"ai-squad/ui"
 	"fmt"
 )
 

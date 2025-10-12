@@ -18,7 +18,7 @@ This feature allows you to review pull request comments and automatically proces
    - The instance must be started (not paused)
 
 2. **Access the PR Review Interface**
-   - In claude-squad, select a started instance with a PR
+   - In ai-squad, select a started instance with a PR
    - Press `R` to open the PR review interface for that instance's worktree
 
 3. **Review Comments**

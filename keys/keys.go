@@ -420,7 +420,7 @@ func DefaultKeyBindings() *KeyBindingsConfig {
 
 // LoadKeyBindings loads keybindings from the config file
 func LoadKeyBindings() (*KeyBindingsConfig, error) {
-	configPath := filepath.Join(os.Getenv("HOME"), ".claude-squad", "keybindings.json")
+	configPath := filepath.Join(os.Getenv("HOME"), ".ai-squad", "keybindings.json")
 
 	// Check if file exists
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
@@ -450,7 +450,7 @@ func LoadKeyBindings() (*KeyBindingsConfig, error) {
 
 // Save saves keybindings to the config file
 func (k *KeyBindingsConfig) Save() error {
-	configPath := filepath.Join(os.Getenv("HOME"), ".claude-squad", "keybindings.json")
+	configPath := filepath.Join(os.Getenv("HOME"), ".ai-squad", "keybindings.json")
 
 	// Ensure directory exists
 	dir := filepath.Dir(configPath)

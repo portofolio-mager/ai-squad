@@ -387,7 +387,7 @@ func (g *GitWorktree) rebaseWithClone(mainBranch, backupBranch string) error {
 	sanitizedBranch := strings.ReplaceAll(g.branchName, "/", "-")
 
 	// Create a temporary directory for the clone
-	tempDir, err := os.MkdirTemp("", fmt.Sprintf("claude-squad-rebase-%s-*", sanitizedBranch))
+	tempDir, err := os.MkdirTemp("", fmt.Sprintf("ai-squad-rebase-%s-*", sanitizedBranch))
 	if err != nil {
 		return fmt.Errorf("failed to create temp directory: %w", err)
 	}

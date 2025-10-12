@@ -232,5 +232,5 @@ const (
 	cannotRebaseUncommittedChangesError = "cannot rebase: you have uncommitted changes. Press 'c' to checkout and commit, or stash them first"
 	instancePausedError                 = "instance '%s' is paused. Press 'r' to resume it first"
 	noPullRequestFoundError             = "no pull request found for this branch. Push the branch with 'p' first to create a PR: %w"
-	noExternalDiffToolConfiguredError   = "no external diff tool configured. Set 'diff_command' in ~/.claude-squad/config.json or repository's CLAUDE.md"
+	noExternalDiffToolConfiguredError   = "no external diff tool configured. Set 'diff_command' in ~/.ai-squad/config.json or repository's CLAUDE.md"
 )
