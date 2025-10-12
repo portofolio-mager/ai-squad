@@ -1,6 +1,6 @@
 # AI Squad [![CI](https://github.com/portofolio-mager/ai-squad/actions/workflows/build.yml/badge.svg)](https://github.com/portofolio-mager/ai-squad/actions/workflows/build.yml) [![GitHub Release](https://img.shields.io/github/v/release/portofolio-mager/ai-squad)](https://github.com/portofolio-mager/ai-squad/releases/latest)
  
-> Note: This project is a fork of https://github.com/smtg-ai/claude-squad.
+> Note: This project is a fork of https://github.com/smtg-ai/ai-squad.
  
 [AI Squad](https://portofolio-mager.github.io/ai-squad/) is a terminal app that manages multiple [Claude Code](https://github.com/anthropics/claude-code), [Codex](https://github.com/openai/codex), [Gemini](https://github.com/google-gemini/gemini-cli) (and other local agents including [Aider](https://github.com/Aider-AI/aider)) in separate workspaces, allowing you to work on multiple tasks simultaneously.
 
@@ -112,7 +112,7 @@ The menu at the bottom of the screen shows available commands:
 - `?` - Show help menu
 
 ##### Navigation
-- `tab` - Switch between preview tab and diff tab
+- `tab` - Switch between AI, diff, and terminal tabs
 - `q` - Quit the application
 - `shift-↓/↑` - scroll in diff view
 

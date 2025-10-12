@@ -12,6 +12,13 @@ import (
 	"strings"
 )
 
+var (
+	// Pre-compiled regex patterns for parsing CLAUDE.md
+	aiSquadSectionRe = regexp.MustCompile(`(?i)\[ai-squad\]([\s\S]*?)(?:\n\[|$)`)
+	ideCommandRe     = regexp.MustCompile(`(?m)^ide_command\s*[:=]\s*(.+)$`)
+	diffCommandRe    = regexp.MustCompile(`(?m)^diff_command\s*[:=]\s*(.+)$`)
+)
+
 const (
 	ConfigFileName = "config.json"
 	defaultProgram = "claude"
@@ -51,6 +58,18 @@ type Config struct {
 	CompactMenu bool `json:"compact_menu"`
 	// HideLogo hides the ASCII logo to save screen space
 	HideLogo bool `json:"hide_logo"`
+	// DefaultIdeCommand is the default IDE command to use when none is configured per-repo
+	DefaultIdeCommand string `json:"default_ide_command"`
+	// DefaultDiffCommand is the default external diff command to use when none is configured per-repo
+	DefaultDiffCommand string `json:"default_diff_command"`
+}
+
+// RepoConfig represents per-repository configuration
+type RepoConfig struct {
+	// IdeCommand is the IDE command to use for this repository
+	IdeCommand string `json:"ide_command,omitempty"`
+	// DiffCommand is the external diff command to use for this repository
+	DiffCommand string `json:"diff_command,omitempty"`
 }
 
 // DefaultConfig returns the default configuration
@@ -73,9 +92,11 @@ func DefaultConfig() *Config {
 			}
 			return fmt.Sprintf("%s/", strings.ToLower(user.Username))
 		}(),
-		LayoutMode:  LayoutModeAuto,
-		CompactMenu: false,
-		HideLogo:    false,
+		LayoutMode:         LayoutModeAuto,
+		CompactMenu:        false,
+		HideLogo:           false,
+		DefaultIdeCommand:  "webstorm",
+		DefaultDiffCommand: "",
 	}
 }
 
@@ -259,6 +280,15 @@ func LoadConfig() *Config {
 		}
 	}
 
+	// Merge with defaults for missing fields to handle config file migration
+	defaults := DefaultConfig()
+	if config.DefaultIdeCommand == "" {
+		config.DefaultIdeCommand = defaults.DefaultIdeCommand
+	}
+	if config.DefaultDiffCommand == "" {
+		config.DefaultDiffCommand = defaults.DefaultDiffCommand
+	}
+
 	return &config
 }
 
@@ -311,4 +341,100 @@ func (c *Config) ShouldHideLogo(effectiveMode LayoutMode) bool {
 		return true
 	}
 	return effectiveMode == LayoutModeMobile
+}
+
+// LoadRepoConfig loads per-repository configuration from CLAUDE.md or .ai-squad/config.json
+// It searches for configuration in the following order:
+// 1. .ai-squad/config.json in the repository root
+// 2. [ai-squad] section in CLAUDE.md in the repository root
+// 3. Returns empty RepoConfig if no configuration found
+func LoadRepoConfig(repoPath string) *RepoConfig {
+	if repoPath == "" {
+		return &RepoConfig{}
+	}
+
+	// Try .ai-squad/config.json first
+	if config := loadRepoConfigFromJSON(repoPath); config != nil {
+		return config
+	}
+
+	// Try CLAUDE.md second
+	if config := loadRepoConfigFromCLAUDEMD(repoPath); config != nil {
+		return config
+	}
+
+	return &RepoConfig{}
+}
+
+// loadRepoConfigFromJSON loads configuration from .ai-squad/config.json in repo root
+func loadRepoConfigFromJSON(repoPath string) *RepoConfig {
+	configPath := filepath.Join(repoPath, ".ai-squad", "config.json")
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil
+	}
+
+	var config RepoConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		log.WarningLog.Printf("failed to parse repo config at %s: %v", configPath, err)
+		return nil
+	}
+
+	return &config
+}
+
+// loadRepoConfigFromCLAUDEMD loads configuration from [ai-squad] section in CLAUDE.md
+func loadRepoConfigFromCLAUDEMD(repoPath string) *RepoConfig {
+	claudePath := filepath.Join(repoPath, "CLAUDE.md")
+	data, err := os.ReadFile(claudePath)
+	if err != nil {
+		return nil
+	}
+
+	content := string(data)
+
+	// Look for [ai-squad] section
+	matches := aiSquadSectionRe.FindStringSubmatch(content)
+	if len(matches) < 2 {
+		return nil
+	}
+
+	configSection := matches[1]
+	config := &RepoConfig{}
+
+	// Parse ide_command
+	if ideMatches := ideCommandRe.FindStringSubmatch(configSection); len(ideMatches) > 1 {
+		config.IdeCommand = strings.TrimSpace(ideMatches[1])
+	}
+
+	// Parse diff_command
+	if diffMatches := diffCommandRe.FindStringSubmatch(configSection); len(diffMatches) > 1 {
+		config.DiffCommand = strings.TrimSpace(diffMatches[1])
+	}
+
+	return config
+}
+
+// GetEffectiveIdeCommand returns the IDE command to use, checking repo config first, then global config
+func GetEffectiveIdeCommand(repoPath string, globalConfig *Config) string {
+	repoConfig := LoadRepoConfig(repoPath)
+	if repoConfig.IdeCommand != "" {
+		return repoConfig.IdeCommand
+	}
+	if globalConfig != nil && globalConfig.DefaultIdeCommand != "" {
+		return globalConfig.DefaultIdeCommand
+	}
+	return "webstorm" // fallback
+}
+
+// GetEffectiveDiffCommand returns the diff command to use, checking repo config first, then global config
+func GetEffectiveDiffCommand(repoPath string, globalConfig *Config) string {
+	repoConfig := LoadRepoConfig(repoPath)
+	if repoConfig.DiffCommand != "" {
+		return repoConfig.DiffCommand
+	}
+	if globalConfig != nil && globalConfig.DefaultDiffCommand != "" {
+		return globalConfig.DefaultDiffCommand
+	}
+	return "" // empty means use built-in diff viewer
 }

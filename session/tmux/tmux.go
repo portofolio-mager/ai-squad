@@ -52,18 +52,24 @@ type TmuxSession struct {
 	//
 	// Channel to be closed at the very end of detaching. Used to signal callers.
 	attachCh chan struct{}
+	// Channel to signal reload request (Ctrl+R)
+	reloadCh chan struct{}
+	// needsReload indicates if a reload was requested
+	needsReload bool
 	// While attached, we use some goroutines to manage the window size and stdin/stdout. This stuff
 	// is used to terminate them on Detach. We don't want them to outlive the attached window.
 	ctx    context.Context
 	cancel func()
 	wg     *sync.WaitGroup
+	// isReloading tracks if we're in the middle of a reload operation
+	isReloading bool
 }
 
-const TmuxPrefix = "claudesquad_"
+const TmuxPrefix = "aisquad_"
 
 var whiteSpaceRegex = regexp.MustCompile(`\s+`)
 
-func toClaudeSquadTmuxName(str string) string {
+func toAISquadTmuxName(str string) string {
 	str = whiteSpaceRegex.ReplaceAllString(str, "")
 	str = strings.ReplaceAll(str, ".", "_") // tmux replaces all . with _
 	return fmt.Sprintf("%s%s", TmuxPrefix, str)
@@ -81,7 +87,7 @@ func NewTmuxSessionWithDeps(name string, program string, ptyFactory PtyFactory, 
 
 func newTmuxSession(name string, program string, ptyFactory PtyFactory, cmdExec cmd.Executor) *TmuxSession {
 	return &TmuxSession{
-		sanitizedName: toClaudeSquadTmuxName(name),
+		sanitizedName: toAISquadTmuxName(name),
 		program:       program,
 		ptyFactory:    ptyFactory,
 		cmdExec:       cmdExec,
@@ -167,6 +173,14 @@ func (t *TmuxSession) Start(workDir string) error {
 	mouseCmd := exec.Command("tmux", "set-option", "-t", t.sanitizedName, "mouse", "on")
 	if err := t.cmdExec.Run(mouseCmd); err != nil {
 		log.InfoLog.Printf("Warning: failed to enable mouse scrolling for session %s: %v", t.sanitizedName, err)
+	}
+
+	// Set status-position to top
+	statusCmd := exec.Command("tmux", "set-option", "-t", t.sanitizedName, "status-position", "top")
+	if err := t.cmdExec.Run(statusCmd); err != nil {
+		// Non-fatal error, just log it
+		// The session will still work without this setting
+		log.InfoLog.Printf("Warning: failed to set status-position for session %s: %v", t.sanitizedName, err)
 	}
 
 	err = t.Restore()
@@ -265,6 +279,11 @@ func (t *TmuxSession) TapDAndEnter() error {
 }
 
 func (t *TmuxSession) SendKeys(keys string) error {
+	// First check if the session exists
+	if !t.DoesSessionExist() {
+		return fmt.Errorf("tmux session %s does not exist", t.sanitizedName)
+	}
+
 	_, err := t.ptmx.Write([]byte(keys))
 	return err
 }
@@ -272,6 +291,11 @@ func (t *TmuxSession) SendKeys(keys string) error {
 // HasUpdated checks if the tmux pane content has changed since the last tick. It also returns true if
 // the tmux pane has a prompt for aider or claude code.
 func (t *TmuxSession) HasUpdated() (updated bool, hasPrompt bool) {
+	// First check if the session exists
+	if !t.DoesSessionExist() {
+		return false, false
+	}
+
 	content, err := t.CapturePaneContent()
 	if err != nil {
 		log.ErrorLog.Printf("error capturing pane content in status monitor: %v", err)
@@ -298,8 +322,24 @@ func (t *TmuxSession) HasUpdated() (updated bool, hasPrompt bool) {
 	return false, hasPrompt
 }
 
-func (t *TmuxSession) Attach() (chan struct{}, error) {
+// AttachToPane attaches to the tmux session and selects the specified pane
+func (t *TmuxSession) AttachToPane(paneIndex int) (chan struct{}, error) {
 	t.attachCh = make(chan struct{})
+
+	// First, ensure we're on the correct window (window 0)
+	selectWindowCmd := exec.Command("tmux", "select-window", "-t", t.sanitizedName+":0")
+	t.cmdExec.Run(selectWindowCmd)
+
+	// Select and zoom the specified pane
+	targetPane := fmt.Sprintf("%s.%d", t.sanitizedName, paneIndex)
+
+	// Select the pane
+	selectCmd := exec.Command("tmux", "select-pane", "-t", targetPane)
+	if err := t.cmdExec.Run(selectCmd); err == nil {
+		// Zoom the pane to fill the window
+		zoomCmd := exec.Command("tmux", "resize-pane", "-Z", "-t", targetPane)
+		t.cmdExec.Run(zoomCmd)
+	}
 
 	t.wg = &sync.WaitGroup{}
 	t.wg.Add(1)
@@ -314,15 +354,17 @@ func (t *TmuxSession) Attach() (chan struct{}, error) {
 		defer t.wg.Done()
 		_, _ = io.Copy(os.Stdout, t.ptmx)
 		// When io.Copy returns, it means the connection was closed
-		// This could be due to normal detach or Ctrl-D
-		// Check if the context is done to determine if it was a normal detach
+		// This could be due to normal detach, reload, or Ctrl-D
+		// Check if the context is done or we're reloading to determine if it was a normal operation
 		select {
 		case <-t.ctx.Done():
 			// Normal detach, do nothing
 		default:
-			// If context is not done, it was likely an abnormal termination (Ctrl-D)
+			// If context is not done and we're not reloading, it was likely an abnormal termination (Ctrl-D)
 			// Print warning message
-			fmt.Fprintf(os.Stderr, "\n\033[31mError: Session terminated without detaching. Use Ctrl-Q to properly detach from tmux sessions.\033[0m\n")
+			if !t.isReloading {
+				fmt.Fprintf(os.Stderr, "\n\033[31mError: Session terminated without detaching. Use Ctrl-Q to properly detach from tmux sessions.\033[0m\n")
+			}
 		}
 	}()
 
@@ -366,6 +408,17 @@ func (t *TmuxSession) Attach() (chan struct{}, error) {
 				return
 			}
 
+			// Check for Ctrl+r (ASCII 18)
+			if nr == 1 && buf[0] == 18 {
+				// Print reload message
+				fmt.Fprintf(os.Stderr, "\n\033[33mReloading tmux session...\033[0m\n")
+				// Set reload flag
+				t.needsReload = true
+				// Trigger detach to properly reload
+				t.Detach()
+				return
+			}
+
 			// Forward other input to tmux
 			_, _ = t.ptmx.Write(buf[:nr])
 		}
@@ -398,6 +451,10 @@ func (t *TmuxSession) DetachSafely() error {
 		t.attachCh = nil
 	}
 
+	if t.reloadCh != nil {
+		t.reloadCh = nil
+	}
+
 	if t.cancel != nil {
 		t.cancel()
 		t.cancel = nil
@@ -416,14 +473,26 @@ func (t *TmuxSession) DetachSafely() error {
 	return nil
 }
 
+// Attach attaches to the tmux session (defaults to pane 0)
+func (t *TmuxSession) Attach() (chan struct{}, error) {
+	// Default to pane 0 for backward compatibility
+	return t.AttachToPane(0)
+}
+
 // Detach disconnects from the current tmux session. It panics if detaching fails. At the moment, there's no
 // way to recover from a failed detach.
 func (t *TmuxSession) Detach() {
 	// TODO: control flow is a bit messy here. If there's an error,
 	// I'm not sure if we get into a bad state. Needs testing.
+
+	// Unzoom any zoomed pane before detaching
+	unzoomCmd := exec.Command("tmux", "resize-pane", "-Z", "-t", t.sanitizedName)
+	t.cmdExec.Run(unzoomCmd)
+
 	defer func() {
 		close(t.attachCh)
 		t.attachCh = nil
+		t.reloadCh = nil
 		t.cancel = nil
 		t.ctx = nil
 		t.wg = nil
@@ -463,9 +532,12 @@ func (t *TmuxSession) Close() error {
 		t.ptmx = nil
 	}
 
-	cmd := exec.Command("tmux", "kill-session", "-t", t.sanitizedName)
-	if err := t.cmdExec.Run(cmd); err != nil {
-		errs = append(errs, fmt.Errorf("error killing tmux session: %w", err))
+	// Only try to kill session if it exists
+	if t.DoesSessionExist() {
+		cmd := exec.Command("tmux", "kill-session", "-t", t.sanitizedName)
+		if err := t.cmdExec.Run(cmd); err != nil {
+			errs = append(errs, fmt.Errorf("error killing tmux session: %w", err))
+		}
 	}
 
 	if len(errs) == 0 {
@@ -504,10 +576,15 @@ func (t *TmuxSession) DoesSessionExist() bool {
 	return t.cmdExec.Run(existsCmd) == nil
 }
 
-// CapturePaneContent captures the content of the tmux pane
+// CapturePaneContent captures the content of pane 0 (terminal after split)
 func (t *TmuxSession) CapturePaneContent() (string, error) {
+	// First check if the session exists
+	if !t.DoesSessionExist() {
+		return "", fmt.Errorf("tmux session %s does not exist", t.sanitizedName)
+	}
+
 	// Add -e flag to preserve escape sequences (ANSI color codes)
-	cmd := exec.Command("tmux", "capture-pane", "-p", "-e", "-J", "-t", t.sanitizedName)
+	cmd := exec.Command("tmux", "capture-pane", "-p", "-e", "-J", "-t", t.sanitizedName+".0")
 	output, err := t.cmdExec.Output(cmd)
 	if err != nil {
 		return "", fmt.Errorf("error capturing pane content: %v", err)
@@ -518,6 +595,11 @@ func (t *TmuxSession) CapturePaneContent() (string, error) {
 // CapturePaneContentWithOptions captures the pane content with additional options
 // start and end specify the starting and ending line numbers (use "-" for the start/end of history)
 func (t *TmuxSession) CapturePaneContentWithOptions(start, end string) (string, error) {
+	// First check if the session exists
+	if !t.DoesSessionExist() {
+		return "", fmt.Errorf("tmux session %s does not exist", t.sanitizedName)
+	}
+
 	// Add -e flag to preserve escape sequences (ANSI color codes)
 	cmd := exec.Command("tmux", "capture-pane", "-p", "-e", "-J", "-S", start, "-E", end, "-t", t.sanitizedName)
 	output, err := t.cmdExec.Output(cmd)
@@ -525,6 +607,110 @@ func (t *TmuxSession) CapturePaneContentWithOptions(start, end string) (string, 
 		return "", fmt.Errorf("failed to capture tmux pane content with options: %v", err)
 	}
 	return string(output), nil
+}
+
+// GetSessionName returns the sanitized tmux session name
+func (t *TmuxSession) GetSessionName() string {
+	return t.sanitizedName
+}
+
+// GetReloadChannel returns the reload channel for handling Ctrl+R
+func (t *TmuxSession) GetReloadChannel() <-chan struct{} {
+	return t.reloadCh
+}
+
+// NeedsReload returns true if a reload was requested
+func (t *TmuxSession) NeedsReload() bool {
+	return t.needsReload
+}
+
+// ClearReloadFlag clears the reload flag
+func (t *TmuxSession) ClearReloadFlag() {
+	t.needsReload = false
+}
+
+// ReloadSession kills and recreates the tmux session in the specified directory
+func (t *TmuxSession) ReloadSession(workDir string) error {
+	// Set reloading flag to prevent error message
+	t.isReloading = true
+
+	// Kill existing session if it exists
+	if t.DoesSessionExist() {
+		cmd := exec.Command("tmux", "kill-session", "-t", t.sanitizedName)
+		t.cmdExec.Run(cmd) // Ignore error as session might not exist
+	}
+
+	// Close existing PTY if any
+	if t.ptmx != nil {
+		t.ptmx.Close()
+		t.ptmx = nil
+	}
+
+	// Recreate the session
+	err := t.Start(workDir)
+	t.isReloading = false
+	return err
+}
+
+// CreateTerminalPane creates a terminal pane if it doesn't exist
+func (t *TmuxSession) CreateTerminalPane(workDir string) error {
+	// First check if the session exists
+	if !t.DoesSessionExist() {
+		return fmt.Errorf("tmux session %s does not exist", t.sanitizedName)
+	}
+
+	// Check if we already have a second pane
+	listCmd := exec.Command("tmux", "list-panes", "-t", t.sanitizedName, "-F", "#{pane_index}")
+	output, err := t.cmdExec.Output(listCmd)
+	if err != nil {
+		return fmt.Errorf("error listing panes: %v", err)
+	}
+
+	panes := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(panes) >= 2 {
+		// Terminal pane already exists
+		return nil
+	}
+
+	// Create a vertical split for the terminal
+	// Using -b flag to create new pane to the left/above and keep AI in pane 1
+	cmd := exec.Command("tmux", "split-window", "-t", t.sanitizedName, "-v", "-b", "-d", "-c", workDir)
+	if err := t.cmdExec.Run(cmd); err != nil {
+		return fmt.Errorf("error creating terminal pane: %v", err)
+	}
+
+	// Clear the terminal pane (now pane 0)
+	clearCmd := exec.Command("tmux", "send-keys", "-t", t.sanitizedName+".0", "clear", "Enter")
+	t.cmdExec.Run(clearCmd)
+
+	return nil
+}
+
+// CaptureTerminalContent captures the content of pane 1 (AI after split)
+func (t *TmuxSession) CaptureTerminalContent() (string, error) {
+	// First check if the session exists
+	if !t.DoesSessionExist() {
+		return "", fmt.Errorf("tmux session %s does not exist", t.sanitizedName)
+	}
+
+	// Capture from pane index 1 (AI pane after split)
+	cmd := exec.Command("tmux", "capture-pane", "-p", "-e", "-J", "-t", t.sanitizedName+".1")
+	output, err := t.cmdExec.Output(cmd)
+	if err != nil {
+		return "", fmt.Errorf("error capturing terminal content: %v", err)
+	}
+	return string(output), nil
+}
+
+// SendKeysToTerminal sends keystrokes to the terminal pane
+func (t *TmuxSession) SendKeysToTerminal(keys string) error {
+	// First check if the session exists
+	if !t.DoesSessionExist() {
+		return fmt.Errorf("tmux session %s does not exist", t.sanitizedName)
+	}
+
+	cmd := exec.Command("tmux", "send-keys", "-t", t.sanitizedName+".1", keys)
+	return t.cmdExec.Run(cmd)
 }
 
 // CleanupSessions kills all tmux sessions that start with "session-"

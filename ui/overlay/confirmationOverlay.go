@@ -9,6 +9,8 @@ import (
 type ConfirmationOverlay struct {
 	// Whether the overlay has been dismissed
 	Dismissed bool
+	// Whether the user confirmed (pressed 'y')
+	confirmed bool
 	// Message to display in the overlay
 	message string
 	// Width of the overlay
@@ -43,12 +45,14 @@ func (c *ConfirmationOverlay) HandleKeyPress(msg tea.KeyMsg) bool {
 	switch msg.String() {
 	case c.ConfirmKey:
 		c.Dismissed = true
+		c.confirmed = true
 		if c.OnConfirm != nil {
 			c.OnConfirm()
 		}
 		return true
 	case c.CancelKey, "esc":
 		c.Dismissed = true
+		c.confirmed = false
 		if c.OnCancel != nil {
 			c.OnCancel()
 		}
@@ -57,6 +61,11 @@ func (c *ConfirmationOverlay) HandleKeyPress(msg tea.KeyMsg) bool {
 		// Ignore other keys in confirmation state
 		return false
 	}
+}
+
+// IsConfirmed returns true if the user confirmed the action
+func (c *ConfirmationOverlay) IsConfirmed() bool {
+	return c.confirmed
 }
 
 // Render renders the confirmation overlay

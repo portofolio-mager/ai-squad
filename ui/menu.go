@@ -2,6 +2,7 @@ package ui
 
 import (
 	"ai-squad/keys"
+	"strconv"
 	"strings"
 
 	"ai-squad/session"
@@ -41,6 +42,7 @@ const (
 	StateNewInstance
 	StatePrompt
 	StateChangeProgram
+	StateBookmark
 )
 
 type Menu struct {
@@ -51,12 +53,22 @@ type Menu struct {
 	isInDiffTab   bool
 	compactMode   bool
 	verticalMode  bool // Track if we're in vertical/mobile layout
+	scrollLocked  bool
 
 	// keyDown is the key which is pressed. The default is -1.
 	keyDown keys.KeyName
+
+	// updateChecker is used to check if updates are available
+	updateChecker UpdateChecker
 }
 
-var defaultMenuOptions = []keys.KeyName{keys.KeyNew, keys.KeyPrompt, keys.KeyChangeProgram, keys.KeyListProgram, keys.KeyHelp, keys.KeyQuit}
+// UpdateChecker interface for checking if updates are available
+type UpdateChecker interface {
+	IsUpdateAvailable() bool
+	GetCommitsBehind() int
+}
+
+var defaultMenuOptions = []keys.KeyName{keys.KeyNew, keys.KeyExistingBranch, keys.KeyPrompt, keys.KeyChangeProgram, keys.KeyListProgram, keys.KeyHelp, keys.KeyErrorLog, keys.KeyQuit}
 var newInstanceMenuOptions = []keys.KeyName{keys.KeySubmitName}
 var promptMenuOptions = []keys.KeyName{keys.KeySubmitName}
 
@@ -68,6 +80,11 @@ func NewMenu() *Menu {
 		compactMode: false,
 		keyDown:     -1,
 	}
+}
+
+// SetUpdateChecker sets the update checker for the menu
+func (m *Menu) SetUpdateChecker(uc UpdateChecker) {
+	m.updateChecker = uc
 }
 
 func (m *Menu) Keydown(name keys.KeyName) {
@@ -114,6 +131,10 @@ func (m *Menu) SetVerticalMode(vertical bool) {
 	m.verticalMode = vertical
 }
 
+func (m *Menu) SetScrollLocked(locked bool) {
+	m.scrollLocked = locked
+}
+
 // updateOptions updates the menu options based on current state and instance
 func (m *Menu) updateOptions() {
 	switch m.state {
@@ -133,12 +154,15 @@ func (m *Menu) updateOptions() {
 		m.options = promptMenuOptions
 	case StateChangeProgram:
 		m.options = []keys.KeyName{}
+	case StateBookmark:
+		// No menu options during bookmark input
+		m.options = []keys.KeyName{}
 	}
 }
 
 func (m *Menu) addInstanceOptions() {
 	// Instance management group
-	options := []keys.KeyName{keys.KeyNew, keys.KeyKill}
+	options := []keys.KeyName{keys.KeyNew, keys.KeyExistingBranch, keys.KeyKill}
 
 	// Action group
 	actionGroup := []keys.KeyName{keys.KeyEnter, keys.KeySubmit}
@@ -150,7 +174,7 @@ func (m *Menu) addInstanceOptions() {
 
 	// Navigation group (when in diff tab)
 	if m.isInDiffTab {
-		actionGroup = append(actionGroup, keys.KeyShiftUp)
+		actionGroup = append(actionGroup, keys.KeyShiftUp, keys.KeyScrollLock)
 	}
 
 	// System group
@@ -177,9 +201,9 @@ func (m *Menu) String() string {
 		start int
 		end   int
 	}{
-		{0, 2}, // Instance management group (n, d)
-		{2, 5}, // Action group (enter, submit, pause/resume)
-		{6, 8}, // System group (tab, help, q)
+		{0, 3}, // Instance management group (n, e, d)
+		{3, 6}, // Action group (enter, submit, pause/resume)
+		{7, 9}, // System group (tab, help, q)
 	}
 
 	for i, k := range m.options {
@@ -244,6 +268,29 @@ func (m *Menu) String() string {
 					s.WriteString(sepStyle.Render(separator))
 				}
 			}
+		}
+	}
+
+	// Add scroll lock indicator at the end if in diff tab
+	if m.isInDiffTab && m.scrollLocked {
+		s.WriteString(sepStyle.Render(verticalSeparator))
+		scrollLockStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("220")).
+			Bold(true)
+		s.WriteString(scrollLockStyle.Render("[SCROLL LOCK]"))
+	}
+
+	// Add update indicator if updates are available
+	if m.updateChecker != nil && m.updateChecker.IsUpdateAvailable() {
+		s.WriteString(sepStyle.Render(verticalSeparator))
+		updateStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("214")). // Orange color
+			Bold(true)
+		commitsBehind := m.updateChecker.GetCommitsBehind()
+		if commitsBehind > 0 {
+			s.WriteString(updateStyle.Render("[UPDATE AVAILABLE - " + strconv.Itoa(commitsBehind) + " commits behind]"))
+		} else {
+			s.WriteString(updateStyle.Render("[UPDATE AVAILABLE]"))
 		}
 	}
 

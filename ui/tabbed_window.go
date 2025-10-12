@@ -32,8 +32,10 @@ var (
 )
 
 const (
-	PreviewTab int = iota
+	AITab = iota
 	DiffTab
+	TerminalTab
+	JestTab
 )
 
 type Tab struct {
@@ -54,22 +56,30 @@ type TabbedWindow struct {
 	preview  *PreviewPane
 	diff     *DiffPane
 	instance *session.Instance
+	terminal *TerminalPane
+	jest     *JestPane
 }
 
-func NewTabbedWindow(preview *PreviewPane, diff *DiffPane) *TabbedWindow {
+func NewTabbedWindow(preview *PreviewPane, diff *DiffPane, terminal *TerminalPane, jest *JestPane) *TabbedWindow {
 	return &TabbedWindow{
 		tabs: []string{
-			"Preview",
+			"AI",
 			"Diff",
+			"Terminal",
+			"Jest",
 		},
 		preview:        preview,
 		diff:           diff,
+		terminal:       terminal,
+		jest:           jest,
 		verticalLayout: false,
 	}
 }
 
 func (w *TabbedWindow) SetInstance(instance *session.Instance) {
 	w.instance = instance
+	// Update Jest pane with the current instance
+	w.jest.SetInstance(instance)
 }
 
 // AdjustPreviewWidth adjusts the width of the preview pane to be 90% of the provided width.
@@ -96,6 +106,8 @@ func (w *TabbedWindow) SetSize(width, height int) {
 
 	w.preview.SetSize(contentWidth, contentHeight)
 	w.diff.SetSize(contentWidth, contentHeight)
+	w.terminal.SetSize(contentWidth, contentHeight)
+	w.jest.SetSize(contentWidth, contentHeight)
 }
 
 func (w *TabbedWindow) GetPreviewSize() (width, height int) {
@@ -113,7 +125,28 @@ func (w *TabbedWindow) GetPreviewPane() *PreviewPane {
 }
 
 func (w *TabbedWindow) Toggle() {
-	w.activeTab = (w.activeTab + 1) % len(w.tabs)
+	w.cycleTabs(1)
+}
+
+// ToggleReverse cycles through tabs in reverse order
+func (w *TabbedWindow) ToggleReverse() {
+	w.cycleTabs(-1)
+}
+
+// cycleTabs handles cycling through tabs in a given direction.
+func (w *TabbedWindow) cycleTabs(direction int) {
+	if len(w.tabs) == 0 {
+		return
+	}
+	numTabs := len(w.tabs)
+	w.activeTab = (w.activeTab + direction + numTabs) % numTabs
+}
+
+// SetTab sets the active tab directly by index
+func (w *TabbedWindow) SetTab(tabIndex int) {
+	if tabIndex >= 0 && tabIndex < len(w.tabs) {
+		w.activeTab = tabIndex
+	}
 }
 
 // ToggleWithReset toggles the tab and resets preview pane to normal mode
@@ -122,13 +155,17 @@ func (w *TabbedWindow) ToggleWithReset(instance *session.Instance) error {
 	if err := w.preview.ResetToNormalMode(instance); err != nil {
 		return err
 	}
+	// Reset terminal pane to normal mode before switching
+	if err := w.terminal.ResetToNormalMode(instance); err != nil {
+		return err
+	}
 	w.activeTab = (w.activeTab + 1) % len(w.tabs)
 	return nil
 }
 
-// UpdatePreview updates the content of the preview pane. instance may be nil.
+// UpdatePreview updates the content of the AI pane. instance may be nil.
 func (w *TabbedWindow) UpdatePreview(instance *session.Instance) error {
-	if w.activeTab != PreviewTab {
+	if w.activeTab != AITab {
 		return nil
 	}
 	return w.preview.UpdateContent(instance)
@@ -146,37 +183,168 @@ func (w *TabbedWindow) ResetPreviewToNormalMode(instance *session.Instance) erro
 	return w.preview.ResetToNormalMode(instance)
 }
 
+// ResetTerminalToNormalMode resets the terminal pane to normal mode
+func (w *TabbedWindow) ResetTerminalToNormalMode(instance *session.Instance) error {
+	return w.terminal.ResetToNormalMode(instance)
+}
+
+func (w *TabbedWindow) UpdateTerminal(instance *session.Instance) {
+	if w.activeTab != TerminalTab {
+		return
+	}
+	w.terminal.UpdateContent(instance)
+}
+
 // Add these new methods for handling scroll events
 func (w *TabbedWindow) ScrollUp() {
-	if w.activeTab == PreviewTab {
+	switch w.activeTab {
+	case AITab:
 		err := w.preview.ScrollUp(w.instance)
 		if err != nil {
 			log.InfoLog.Printf("tabbed window failed to scroll up: %v", err)
 		}
-	} else {
+	case DiffTab:
 		w.diff.ScrollUp()
+	case TerminalTab:
+		err := w.terminal.ScrollUp(w.instance)
+		if err != nil {
+			log.InfoLog.Printf("terminal pane failed to scroll up: %v", err)
+		}
+	case JestTab:
+		w.jest.ScrollUp()
 	}
 }
 
 func (w *TabbedWindow) ScrollDown() {
-	if w.activeTab == PreviewTab {
+	switch w.activeTab {
+	case AITab:
 		err := w.preview.ScrollDown(w.instance)
 		if err != nil {
 			log.InfoLog.Printf("tabbed window failed to scroll down: %v", err)
 		}
-	} else {
+	case DiffTab:
 		w.diff.ScrollDown()
+	case TerminalTab:
+		err := w.terminal.ScrollDown(w.instance)
+		if err != nil {
+			log.InfoLog.Printf("terminal pane failed to scroll down: %v", err)
+		}
+	case JestTab:
+		w.jest.ScrollDown()
+	}
+}
+
+func (w *TabbedWindow) ScrollToTop() {
+	if w.activeTab == DiffTab {
+		w.diff.ScrollToTop()
+	}
+}
+
+func (w *TabbedWindow) ScrollToBottom() {
+	if w.activeTab == DiffTab {
+		w.diff.ScrollToBottom()
+	}
+}
+
+func (w *TabbedWindow) PageUp() {
+	if w.activeTab == DiffTab {
+		w.diff.PageUp()
+	}
+}
+
+func (w *TabbedWindow) PageDown() {
+	if w.activeTab == DiffTab {
+		w.diff.PageDown()
+	}
+}
+
+func (w *TabbedWindow) JumpToNextFile() {
+	if w.activeTab == DiffTab {
+		w.diff.JumpToNextFile()
+	}
+}
+
+func (w *TabbedWindow) JumpToPrevFile() {
+	if w.activeTab == DiffTab {
+		w.diff.JumpToPrevFile()
 	}
 }
 
 // IsInDiffTab returns true if the diff tab is currently active
 func (w *TabbedWindow) IsInDiffTab() bool {
-	return w.activeTab == 1
+	return w.activeTab == DiffTab
 }
 
 // IsPreviewInScrollMode returns true if the preview pane is in scroll mode
 func (w *TabbedWindow) IsPreviewInScrollMode() bool {
 	return w.preview.isScrolling
+}
+
+// IsTerminalInScrollMode returns true if the terminal pane is in scroll mode
+func (w *TabbedWindow) IsTerminalInScrollMode() bool {
+	return w.terminal.isScrolling
+}
+
+// IsInAITab returns true if the AI tab is currently active
+func (w *TabbedWindow) IsInAITab() bool {
+	return w.activeTab == AITab
+}
+
+// IsInTerminalTab returns true if the terminal tab is currently active
+func (w *TabbedWindow) IsInTerminalTab() bool {
+	return w.activeTab == TerminalTab
+}
+
+// IsInJestTab returns true if the Jest tab is currently active
+func (w *TabbedWindow) IsInJestTab() bool {
+	return w.activeTab == JestTab
+}
+
+// UpdateJest updates the Jest pane with test results
+func (w *TabbedWindow) UpdateJest(instance *session.Instance) {
+	if w.activeTab != JestTab {
+		return
+	}
+	w.jest.RunTests(instance)
+}
+
+// JestRerunTests reruns the Jest tests
+func (w *TabbedWindow) JestRerunTests() {
+	if w.activeTab == JestTab && w.instance != nil {
+		w.jest.RunTests(w.instance)
+	}
+}
+
+// SetDiffModeAll sets the diff view to show all changes
+func (w *TabbedWindow) SetDiffModeAll() {
+	w.diff.SetDiffMode(DiffModeAll)
+}
+
+// SetDiffModeLastCommit sets the diff view to show only the last commit
+func (w *TabbedWindow) SetDiffModeLastCommit() {
+	w.diff.SetDiffMode(DiffModeLastCommit)
+}
+
+// NavigateToPrevCommit moves to the previous (older) commit in diff view
+func (w *TabbedWindow) NavigateToPrevCommit() {
+	if w.activeTab == DiffTab {
+		w.diff.NavigateToPrevCommit()
+	}
+}
+
+// NavigateToNextCommit moves to the next (newer) commit in diff view
+func (w *TabbedWindow) NavigateToNextCommit() {
+	if w.activeTab == DiffTab {
+		w.diff.NavigateToNextCommit()
+	}
+}
+
+// GetCurrentDiffFile returns the file path currently being viewed in the diff tab
+func (w *TabbedWindow) GetCurrentDiffFile() string {
+	if w.activeTab == DiffTab {
+		return w.diff.GetCurrentFile()
+	}
+	return ""
 }
 
 func (w *TabbedWindow) String() string {
@@ -269,10 +437,15 @@ func (w *TabbedWindow) String() string {
 
 	row := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
 	var content string
-	if w.activeTab == 0 {
+	switch w.activeTab {
+	case AITab:
 		content = w.preview.String()
-	} else {
+	case DiffTab:
 		content = w.diff.String()
+	case TerminalTab:
+		content = w.terminal.String()
+	case JestTab:
+		content = w.jest.String()
 	}
 	window := windowStyle.Render(
 		lipgloss.Place(

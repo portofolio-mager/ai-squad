@@ -39,25 +39,54 @@ func (h helpTypeGeneral) toContent() string {
 		"",
 		"A terminal UI that manages multiple Claude Code (and other local agents) in separate workspaces.",
 		"",
-		headerStyle.Render("Managing:"),
+		headerStyle.Render("Managing Sessions:"),
 		keyStyle.Render("n")+descStyle.Render("         - Create a new session"),
 		keyStyle.Render("N")+descStyle.Render("         - Create a new session with a prompt"),
+		keyStyle.Render("e")+descStyle.Render("         - Create session from existing branch"),
 		keyStyle.Render("D")+descStyle.Render("         - Kill (delete) the selected session"),
-		keyStyle.Render("↑/j, ↓/k")+descStyle.Render("  - Navigate between sessions"),
+		keyStyle.Render("↑/k, ↓/j")+descStyle.Render("  - Navigate between sessions"),
 		keyStyle.Render("↵/o")+descStyle.Render("       - Attach to the selected session"),
 		keyStyle.Render("ctrl-q")+descStyle.Render("    - Detach from session"),
 		keyStyle.Render("a/P")+descStyle.Render("       - Change program for the selected session (both 'a' and 'P')"),
 		keyStyle.Render("l")+descStyle.Render("         - List available/current programs"),
 		"",
-		headerStyle.Render("Handoff:"),
-		keyStyle.Render("p")+descStyle.Render("         - Commit and push branch to github"),
+		headerStyle.Render("Git & Handoff:"),
+		keyStyle.Render("p")+descStyle.Render("         - Commit and push branch to GitHub"),
 		keyStyle.Render("c")+descStyle.Render("         - Checkout: commit changes and pause session"),
 		keyStyle.Render("r")+descStyle.Render("         - Resume a paused session"),
+		keyStyle.Render("b")+descStyle.Render("         - Rebase with main branch"),
+		keyStyle.Render("h")+descStyle.Render("         - Git reset --hard to origin/branch"),
+		keyStyle.Render("B")+descStyle.Render("         - Create bookmark commit"),
+		keyStyle.Render("g")+descStyle.Render("         - Show git status"),
+		keyStyle.Render("G")+descStyle.Render("         - Show git status bookmarks"),
+		"",
+		headerStyle.Render("IDE & Tools:"),
+		keyStyle.Render("w")+descStyle.Render("         - Open current instance in IDE"),
+		keyStyle.Render("i")+descStyle.Render("         - Open current file in IDE (diff view)"),
+		keyStyle.Render("x")+descStyle.Render("         - Open in external diff tool"),
+		keyStyle.Render("t")+descStyle.Render("         - Run tests"),
+		keyStyle.Render("R")+descStyle.Render("         - Review PR comments"),
+		keyStyle.Render("ctrl+r")+descStyle.Render("    - Resolve all PR conversations"),
+		"",
+		headerStyle.Render("Navigation:"),
+		keyStyle.Render("tab")+descStyle.Render("       - Switch between AI, diff, and terminal tabs"),
+		keyStyle.Render("shift-↓/↑")+descStyle.Render(" - Scroll in diff view"),
+		keyStyle.Render("s")+descStyle.Render("         - Toggle scroll lock (↓/↑ scrolls diff)"),
+		keyStyle.Render("home/end")+descStyle.Render("  - Scroll to top/bottom"),
+		keyStyle.Render("ctrl+a/e")+descStyle.Render("  - Alternative: scroll to top/bottom"),
+		keyStyle.Render("pgup/pgdn")+descStyle.Render(" - Page up/down"),
+		keyStyle.Render("alt-↓/↑")+descStyle.Render("   - Jump to next/prev file in diff"),
+		keyStyle.Render("a")+descStyle.Render("         - Show all changes in diff"),
+		keyStyle.Render("d")+descStyle.Render("         - Show commit history"),
+		keyStyle.Render("←/→")+descStyle.Render("       - Navigate commits"),
 		"",
 		headerStyle.Render("Other:"),
-		keyStyle.Render("tab")+descStyle.Render("       - Switch between preview and diff tabs"),
-		keyStyle.Render("shift-↓/↑")+descStyle.Render(" - Scroll in diff view"),
+		keyStyle.Render("?")+descStyle.Render("         - Show this help screen"),
+		keyStyle.Render("l")+descStyle.Render("         - View error log"),
+		keyStyle.Render("ctrl+h")+descStyle.Render("    - View pane history"),
+		keyStyle.Render("K")+descStyle.Render("         - Edit keyboard shortcuts"),
 		keyStyle.Render("q")+descStyle.Render("         - Quit the application"),
+		keyStyle.Render("mouse")+descStyle.Render("     - Use mouse wheel to scroll"),
 	)
 	return content
 }
@@ -74,14 +103,24 @@ func (h helpTypeInstanceStart) toContent() string {
 		"",
 		headerStyle.Render("Managing:"),
 		keyStyle.Render("↵/o")+descStyle.Render("   - Attach to the session to interact with it directly"),
-		keyStyle.Render("tab")+descStyle.Render("   - Switch preview panes to view session diff"),
+		keyStyle.Render("tab")+descStyle.Render("   - Switch between AI, diff, and terminal tabs"),
 		keyStyle.Render("D")+descStyle.Render("     - Kill (delete) the selected session"),
 		keyStyle.Render("a / P")+descStyle.Render("     - Change program for the selected session (both 'a' and 'P')"),
 		keyStyle.Render("l")+descStyle.Render("     - List available/current programs"),
+		keyStyle.Render("w")+descStyle.Render("     - Open in IDE"),
 		"",
-		headerStyle.Render("Handoff:"),
+		headerStyle.Render("Git & Handoff:"),
 		keyStyle.Render("c")+descStyle.Render("     - Checkout this instance's branch"),
-		keyStyle.Render("p")+descStyle.Render("     - Push branch to GitHub to create a PR"),
+		keyStyle.Render("p")+descStyle.Render("     - Commit and push branch to GitHub"),
+		keyStyle.Render("b")+descStyle.Render("     - Rebase with main branch"),
+		keyStyle.Render("h")+descStyle.Render("     - Git reset --hard to origin/branch"),
+		keyStyle.Render("B")+descStyle.Render("     - Create bookmark commit"),
+		keyStyle.Render("g")+descStyle.Render("     - Show git status"),
+		"",
+		headerStyle.Render("Tools:"),
+		keyStyle.Render("t")+descStyle.Render("     - Run tests"),
+		keyStyle.Render("l")+descStyle.Render("     - View error log"),
+		keyStyle.Render("?")+descStyle.Render("     - Show help"),
 	)
 	return content
 }
@@ -90,7 +129,15 @@ func (h helpTypeInstanceAttach) toContent() string {
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		titleStyle.Render("Attaching to Instance"),
 		"",
-		descStyle.Render("To detach from a session, press ")+keyStyle.Render("ctrl-q"),
+		descStyle.Render("You are now attached to the tmux session."),
+		"",
+		headerStyle.Render("Session Control:"),
+		keyStyle.Render("ctrl-q")+descStyle.Render("    - Detach from session"),
+		keyStyle.Render("ctrl-r")+descStyle.Render("    - Reload the session"),
+		"",
+		dimStyle.Render("Note: When attached, you're directly interacting with the"),
+		dimStyle.Render("Claude Code session. Use the detach command to return"),
+		dimStyle.Render("to AI Squad's interface."),
 	)
 	return content
 }
@@ -99,13 +146,20 @@ func (h helpTypeInstanceCheckout) toContent() string {
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		titleStyle.Render("Checkout Instance"),
 		"",
-		"Changes will be committed locally. The branch name has been copied to your clipboard for you to checkout.",
+		"Changes will be committed locally. The branch name has been copied to your clipboard.",
 		"",
-		"Feel free to make changes to the branch and commit them. When resuming, the session will continue from where you left off.",
+		"You can now checkout the branch in your main repository to review or modify the changes.",
+		"When resuming, the session will continue from where you left off.",
 		"",
-		headerStyle.Render("Commands:"),
-		keyStyle.Render("c")+descStyle.Render(" - Checkout: commit changes locally and pause session"),
+		headerStyle.Render("Available Actions:"),
+		keyStyle.Render("c")+descStyle.Render(" - Checkout: commit changes and pause session"),
 		keyStyle.Render("r")+descStyle.Render(" - Resume a paused session"),
+		keyStyle.Render("p")+descStyle.Render(" - Commit and push branch to GitHub"),
+		keyStyle.Render("b")+descStyle.Render(" - Rebase with main branch"),
+		keyStyle.Render("h")+descStyle.Render(" - Git reset --hard to origin/branch"),
+		"",
+		dimStyle.Render("Note: The session is paused after checkout. Use 'r' to resume"),
+		dimStyle.Render("when you're ready to continue working with Claude Code."),
 	)
 	return content
 }
@@ -128,6 +182,7 @@ var (
 	headerStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#36CFC9"))
 	keyStyle    = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FFCC00"))
 	descStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FFFFFF"))
+	dimStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("#666666"))
 )
 
 // showHelpScreen displays the help screen overlay if it hasn't been shown before
@@ -154,6 +209,11 @@ func (m *home) showHelpScreen(helpType helpText, onDismiss func()) (tea.Model, t
 
 		m.textOverlay = overlay.NewTextOverlay(content)
 		m.textOverlay.OnDismiss = onDismiss
+		// Set the overlay size based on current window dimensions
+		if m.windowWidth > 0 && m.windowHeight > 0 {
+			width, height := m.calculateOverlayDimensions()
+			m.textOverlay.SetSize(width, height)
+		}
 		m.state = stateHelp
 		return m, nil
 	}
