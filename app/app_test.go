@@ -244,11 +244,11 @@ func TestConfirmationFlowSimulation(t *testing.T) {
 	list.SetSelectedInstance(0)
 
 	h := &home{
-		ctx:       context.Background(),
-		state:     stateDefault,
-		appConfig: config.DefaultConfig(),
-		list:      list,
-		menu:      ui.NewMenu(),
+		// ctx:       context.Background(),
+		// appConfig: config.DefaultConfig(),
+		// menu:      ui.NewMenu(),
+		list:  list,
+		state: stateDefault,
 	}
 
 	// Simulate what happens when D is pressed
@@ -436,9 +436,9 @@ func TestMultipleConfirmationsDontInterfere(t *testing.T) {
 // TestConfirmationModalVisualAppearance tests that confirmation modal has distinct visual appearance
 func TestConfirmationModalVisualAppearance(t *testing.T) {
 	h := &home{
-		ctx:       context.Background(),
-		state:     stateDefault,
-		appConfig: config.DefaultConfig(),
+		// ctx:       context.Background(),
+		// appConfig: config.DefaultConfig(),
+		state: stateDefault,
 	}
 
 	// Create a test confirmation overlay
