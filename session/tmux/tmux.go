@@ -104,7 +104,7 @@ func (t *TmuxSession) Start(workDir string) error {
 	}
 
 	// Check if the program is available
-	if _, err := exec.LookPath(programParts[0]); err != nil {
+	if _, err := t.cmdExec.LookPath(programParts[0]); err != nil {
 		return fmt.Errorf("program '%s' not found in PATH. Please ensure it is installed and available", programParts[0])
 	}
 
